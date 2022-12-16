@@ -1,6 +1,3 @@
-
-
-
 int bankSize = 0x4000; // size of one VIC bank
 
 int widthInChars = 32; // the width (in chars) of one screen, 32 is optimum?
@@ -8,7 +5,6 @@ int nrCharLines = 256 / widthInChars; // the max. number of different character 
 
 int totalScreensSize = nrCharLines * 0x400;
 int nrCharSets = (bankSize - totalScreensSize) / 0x800;
-
 
 int nrBanks = 2;
 int nrLines = nrCharLines * nrCharSets * nrBanks;
@@ -30,7 +26,6 @@ int[] linePhases = new int[200];
 
 int green = 255;
 
-
 void setup() {
 
   double step = maxLineLength / nrLines;
@@ -50,15 +45,10 @@ void setup() {
     // each line has it's own sinetable to (half) rotate it
     for (int i = 0; i < sineTableLength; i++) {
       sineIndex[l][i] =(int)(l * sin((float)(i * phaseStep)));
-    //print(sineIndex[i], "\n");
     }
   }
   
   // the image
-  //for (int i = 0; i < linePhases.length; i++) {
-   //linePhases[i] = (int)(i * ((float)nrLines / (float)linePhases.length));  
-
-  
   for (int i = 0; i < 20; i++) {
     linePhases[i] = i;
   }
@@ -74,64 +64,33 @@ void setup() {
   for (int i = 180; i < 200; i++) {
     linePhases[i] = 4;
   }
-    
-  
-  
-  
+
   print (nrCharLines, " different character lines max\n");
   print ("Room for ", nrCharSets, " char sets\n");
   print ("So ", nrLines, " different lines per bank\n");
 
-  
   size(320, 200);
   background(0);
   frameRate(50);
-
-
-
-  
-
 }
 
-
-
 void draw() {
- 
+
   background(0);
-  //clear();
-  
-  
-  //int sineValue = sineIndex[animFrame];
-  
-  
-  //textSize(16);
-  //text(animFrame, 0, 180);
-  //text(sineValue, 50, 180);
-  
-  
-  
-  
-  //for (int y = 0; y < nrLines; y++) {
-    //line(0, y, lineLengths[y], y); 
-  //}
-  
-    
+
     int animFrame = frameCount % sineTableLength;
-    
+
     if (animFrame == 0) {
       green = green ^ 128;
     }
-    
+
     stroke(0,green,0);
-    
+
   for (int y =0; y < linePhases.length; y++) {
-       
     int lineLength= linePhases[y];
-    
     int projectedLineIndex = sineIndex[lineLength][animFrame];
     int projectedLineLength = lineLengths[projectedLineIndex];
     line (160-(projectedLineLength/2), y, 160+(projectedLineLength/2), y);
   }
-  
-  
+
 }
