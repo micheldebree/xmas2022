@@ -1,12 +1,11 @@
 # http://www.theweb.dk/KickAssembler
-KICKASS=./bin/KickAss.jar
+KICKASS=~/Commodore64/Dev/KickAssembler/KickAss.jar
 # https://sourceforge.net/projects/c64-debugger/
 DEBUGGER=/Applications/C64\ Debugger.app/Contents/MacOS/C64\ Debugger
 # DEBUGGER=start "" "C:\Program Files\C64Debugger.exe" # on Windows
 # https://bitbucket.org/magli143/exomizer/wiki/Home
 EXOMIZER=/usr/local/bin/exomizer
 
-.PHONY: %.debug clean
 .PRECIOUS: %.exe.prg
 
 %.prg: %.asm $(KICKASS)
@@ -14,12 +13,16 @@ EXOMIZER=/usr/local/bin/exomizer
 
 %.exe.prg: %.prg
 	exomizer sfx basic "$<" -o "$@"
+
+.PHONY: %.run
+%.run: %.prg
 	x64sc "$@"
 
+.PHONY: %.debug
 %.debug: %.prg
-	$(DEBUGGER) -prg "$<" -wait 2500 -autojmp -layout 9
-	# x64sc -moncommands "$*.vs" "$@"
+	$(DEBUGGER) -prg "$<" -wait 3000 -autojmp -layout 9
 
+.PHONY: clean
 clean:
 	rm -f *.prg
 	rm -f *.exe.prg
