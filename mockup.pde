@@ -162,12 +162,12 @@ void draw() {
     
     //for (int i=0; i < 3*3; i+=3) {
     
-      if (animFrame > sineTableLength /2 ) {
-        line(start+2, y, start+3, y);
-      }
-      else {
-        line(end-2, y, end-3, y);
-      }
+      //if (animFrame > sineTableLength /2 ) {
+        //line(start+2, y, start+3, y);
+      //}
+      //else {
+        //line(end-2, y, end-3, y);
+      //}
     //}
     
     

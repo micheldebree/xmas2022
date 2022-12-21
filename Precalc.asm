@@ -16,27 +16,10 @@ BasicUpstart2(preview)
 			}
 			.eval mask = mask >> 1
 	}
-	// .print("line segment " + x1 + " to " + x2 + " for char " + charIndex + " is " + result)
+// .print ("line segment " + x1 + " to " + x2 + " for char " + charIndex + " is " + result)
 	.return result
 }
 
-.macro calcCharset(nrLines, maxWidth) {
-
-	.const middle = maxWidth / 2
-	.const step = middle / nrLines
-
-	.for (var i = 0; i < nrLines; i++)	{
-
-		.const length = i * step;
-		.const x1 = middle - length
-		.const x2 = middle + length
-
-
-
-
-	}
-
-}
 
 
 // Set the vic bank to start at
@@ -46,6 +29,11 @@ BasicUpstart2(preview)
 	and #%11111100
 	ora #%11 - startAddress / $4000
 	sta $dd00
+}
+
+
+.function calcD018(screenNr, charSetNr) {
+	.return screenNr << 4 | charSetNr << 1
 }
 
 // relative to the bank
@@ -58,7 +46,8 @@ BasicUpstart2(preview)
 	.const bitsCharset = charSetAddress / $800
 	.const bitsScreen = screenAddress / $400
 
-	lda #bitsScreen << 4 | bitsCharset << 1
+	// lda #bitsScreen << 4 | bitsCharset << 1
+	lda #calcD018(bitsScreen, bitsCharset)
 	sta $d018
 }
 
@@ -66,27 +55,32 @@ BasicUpstart2(preview)
 
 preview:
 	sei
-
-	// select VIC bank
-	// lda $dd00
-	// and #%11111100
-	// ora #%10 // 11 = $0000, 10 = $4000, 01 = $8000, 00 = $c000
-	// sta $dd00
-
 	vicSelectBank($4000)
-
-	// screen at $0000, chars at 4 * $0800 = $2000
-	// lda (%0000 << 3) | ($2000 / 4)
-	// sta $d018
 	vicSetGraphicsPointers($0000, $2000)
 
-	// lda #%00000100
-	// sta $d018
-	jmp *
+loop:
+	lda #$fa
+wait:
+	cmp $d012
+	bne wait
 
-* = $4000
+li:
+	ldx #00
+	lda d018Values,x
+	sta $d018
+	lda dd00Values,x
+	sta $dd00
+	inx
+	cpx #48
+	bcc skip
+	ldx #0
+skip:
+	stx li+1
+	jmp loop
 
-// fill the screen with 8 different character lines
+
+
+.macro testScreen() {
 	.const charsPerLine = 32
 	.const lines = 256 / charsPerLine
 	.const emptyChars = 40 - charsPerLine
@@ -101,18 +95,81 @@ preview:
 
 	}
 
+}
 
-// fill the charset
-* = $6000
+.macro indexD018(nrScreens) {
+	.const nrCharSets = 4
+	.for (var fi = 0; fi < nrCharSets; fi++) {
+		.for (var si = 0; si < nrScreens; si++) {
+			.byte calcD018(si, 4 + fi)
+		}
+	}
+}
+
+* = $3000 "d018 and dd00 values"
+d018Values:
+	indexD018(8); // repeated per bank
+	indexD018(4); // $9000-$a000 sees Char ROM so are unusable
+
+dd00Values:
+	.for (var i = 0; i < 32; i++) {
+		.byte %10 // bank $4000
+	}
+	.for (var i = 0; i < 32; i++) {
+		.byte %01 // bank $8000
+	}
+
+
+
+// Screen data bank $4000
+
+.macro fillScreenWithChars(screenNr) {
+	.for (var y = 0; y < screenHeight; y++) {
+		.for (var x =0; x < charsPerLine; x++) {
+				.byte screenNr * charsPerLine + x
+		}
+		.for (var x = 0; x < 40-charsPerLine; x++) {
+			.byte 0
+		}
+	}
+
+}
+
+.const charsPerLine = 32
+.const nrLines = 256 / charsPerLine
+.const screenHeight = 25
+
+.for (var i = 0; i < nrLines; i++) {
+
+	* = $4000 + (i * $400) "Screen bank 1"
+	fillScreenWithChars(i);
+	* = $8000 + (i * $400) "Screen bank 2"
+	fillScreenWithChars(i);
+
+}
+
+
+// fill the screen with 8 different character lines
+
+
+// bank $4000
+// 8 screens
+// 4 fonts: line lengtes 0-7, 8-15, 16-23, 24-31
+// bank $8000
+// 4 fonts: line lengtes 
+
+
+
+
+.macro createCharset(charsPerLine, lineNr) {
 
 	.const maxLineLength = charsPerLine * 8
-	.const lineStep = maxLineLength / 128 // 64 lines in total
-
+	.const lineStep = maxLineLength / (2*48) // 48 lines in total
 
   // 8 lines of characters
 	.for (var y =0; y < 8; y++) {
 
-		.const lineLength = y * lineStep 
+		.const lineLength = (y + lineNr) * lineStep
 		.const middle = maxLineLength / 2
 		.const x1 = middle - lineLength
 		.const x2 = middle + lineLength
@@ -124,5 +181,22 @@ preview:
 				.byte lineSegmentBits(x1, x2, x)
 			}
 		}
-
 	}
+}
+
+
+
+// fill the charset
+* = $4000+$2000 "Charsets bank 1"
+
+	createCharset(32, 0)
+	createCharset(32, 1*8)
+	createCharset(32, 2*8)
+	createCharset(32, 3*8)
+
+* = $8000+$2000 "Charsets bank 2"
+
+	createCharset(32, 4*8)
+	createCharset(32, 5*8)
+	createCharset(32, 6*8)
+	createCharset(32, 7*8)

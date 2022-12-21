@@ -16,11 +16,11 @@ EXOMIZER=/usr/local/bin/exomizer
 
 .PHONY: %.run
 %.run: %.prg
-	x64sc "$@"
+	x64sc -moncommands "$*.vs" "$<"
 
 .PHONY: %.debug
 %.debug: %.prg
-	$(DEBUGGER) -prg "$<" -wait 3000 -autojmp -layout 9
+	$(DEBUGGER) -prg "$<" -wait 5000 -autojmp -layout 9
 
 .PHONY: clean
 clean:
