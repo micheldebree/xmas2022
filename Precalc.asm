@@ -1,4 +1,17 @@
+// TODO:: use more accurate math?
+
 BasicUpstart2(preview)
+
+.const vicBankSize = $4000 // size of one VIC bank
+.const screenSize = $400 // size of one text screen
+.const fontSize = $800 // size of one font
+.const nrBanks = 2 // number of VIC banks to use
+.const nrCharsPerLine = 32 // width of the animation in characters
+.const maxLineSize = nrCharsPerLine * 8 // max width of a line in pixels
+.const nrScreensPerBank = 8 // number of different text screens to use
+// the number of fonts that fit in a VIC bank after memory for the screens has been used
+.const nrFontsPerBank = (vicBankSize - nrScreensPerBank * screenSize) / fontSize
+.const sineLength = 128 // length of the sineTable
 
 // for line x1 to x2, get the byte representing the segment at charIndex
 .function lineSegmentBits(x1, x2, charIndex) {
@@ -20,8 +33,6 @@ BasicUpstart2(preview)
 	.return result
 }
 
-
-
 // Set the vic bank to start at
 .macro vicSelectBank(startAddress) {
 	.assert "startAddess must be a multiple of $4000", mod(startAddress, $4000), 0
@@ -31,23 +42,19 @@ BasicUpstart2(preview)
 	sta $dd00
 }
 
-
 .function calcD018(screenNr, charSetNr) {
 	.return screenNr << 4 | charSetNr << 1
 }
 
 // relative to the bank
-.macro vicSetGraphicsPointers(screenAddress, charSetAddress) {
-	.assert "screenAddress must be a multiple op $400", mod(screenAddress, $400), 0
-	.assert "charsetAddress must be a multiple op $800", mod(screenAddress, $800), 0
-	.assert "screenAddress must be below $4000", screenAddress < $4000, true
-	.assert "charsetAddress must be below $4000", charSetAddress < $4000, true
+.macro vicSetGraphicsPointers(baseAddress, screenOffset, fontOffset) {
+	.errorif mod(screenOffset,$400) != 0, "screenOffset must be a multiple op $400"
+	.errorif mod(fontOffset, $800) != 0, "fontOffset must be a multiple op $800"
+	.errorif screenOffset > $4000, "screenOffset must be below $4000"
+	.errorif fontOffset > $4000, "fontOffset must be below $4000"
 
-	.const bitsCharset = charSetAddress / $800
-	.const bitsScreen = screenAddress / $400
-
-	// lda #bitsScreen << 4 | bitsCharset << 1
-	lda #calcD018(bitsScreen, bitsCharset)
+	vicSelectBank(baseAddress)
+	lda #calcD018(fontOffset / $800, screenOffset / $400)
 	sta $d018
 }
 
@@ -55,29 +62,41 @@ BasicUpstart2(preview)
 
 preview:
 	sei
-	vicSelectBank($4000)
-	vicSetGraphicsPointers($0000, $2000)
+	vicSetGraphicsPointers($4000, $0000, $2000)
+
+	lda #$01
+	ldx #$00
+fillcolor:
+	sta $d800,x
+	sta $d900,x
+	sta $da00,x
+	sta $db00,x
+	inx
+	bne fillcolor
+
 
 loop:
-	lda #$fa
+	lda #$ff
 wait:
 	cmp $d012
 	bne wait
 
 li:
 	ldx #00
-	lda d018Values,x
+
+  ldy sineTable,x
+
+	lda d018Values,y
 	sta $d018
-	lda dd00Values,x
+	lda dd00Values,y
 	sta $dd00
 	inx
-	cpx #48
+	cpx #sineLength
 	bcc skip
 	ldx #0
 skip:
 	stx li+1
 	jmp loop
-
 
 
 .macro testScreen() {
@@ -94,12 +113,10 @@ skip:
 		}
 
 	}
-
 }
 
-.macro indexD018(nrScreens) {
-	.const nrCharSets = 4
-	.for (var fi = 0; fi < nrCharSets; fi++) {
+.macro indexD018(nrScreens, nrFonts) {
+	.for (var fi = 0; fi < nrFonts; fi++) {
 		.for (var si = 0; si < nrScreens; si++) {
 			.byte calcD018(si, 4 + fi)
 		}
@@ -107,18 +124,28 @@ skip:
 }
 
 * = $3000 "d018 and dd00 values"
+
 d018Values:
-	indexD018(8); // repeated per bank
-	indexD018(4); // $9000-$a000 sees Char ROM so are unusable
+	indexD018(8, 4)
+	indexD018(4, 4) // $9000-$a000 sees Char ROM so are unusable
 
 dd00Values:
-	.for (var i = 0; i < 32; i++) {
+	.for (var i = 0; i < 4 * 8; i++) {
 		.byte %10 // bank $4000
 	}
-	.for (var i = 0; i < 32; i++) {
+	.for (var i = 0; i < 4 * 4; i++) {
 		.byte %01 // bank $8000
 	}
 
+
+.align $100
+* = * "Sine table"
+
+sineTable:
+
+.for (var t = 0; t < sineLength; t++) {
+	.byte 48 * sin(toRadians(t * 180/sineLength))
+}
 
 
 // Screen data bank $4000
@@ -148,6 +175,9 @@ dd00Values:
 
 }
 
+// * = $4000
+	// testScreen()
+
 
 // fill the screen with 8 different character lines
 
@@ -161,13 +191,14 @@ dd00Values:
 
 
 
-.macro createCharset(charsPerLine, lineNr) {
+// nrScreen = 8 for bank 1, 4 for bank 2
+.macro createCharset(charsPerLine, lineNr, nrScreens) {
 
 	.const maxLineLength = charsPerLine * 8
 	.const lineStep = maxLineLength / (2*48) // 48 lines in total
 
   // 8 lines of characters
-	.for (var y =0; y < 8; y++) {
+	.for (var y =0; y < nrScreens; y++) {
 
 		.const lineLength = (y + lineNr) * lineStep
 		.const middle = maxLineLength / 2
@@ -189,14 +220,18 @@ dd00Values:
 // fill the charset
 * = $4000+$2000 "Charsets bank 1"
 
-	createCharset(32, 0)
-	createCharset(32, 1*8)
-	createCharset(32, 2*8)
-	createCharset(32, 3*8)
+	createCharset(32, 0, 8)
+	createCharset(32, 1*8, 8)
+	createCharset(32, 2*8, 8)
+	createCharset(32, 3*8, 8)
 
-* = $8000+$2000 "Charsets bank 2"
+* = $8000 + $2000 "Charsets bank 2"
 
-	createCharset(32, 4*8)
-	createCharset(32, 5*8)
-	createCharset(32, 6*8)
-	createCharset(32, 7*8)
+	createCharset(32, 4*8, 4)
+	.fill $400, 0
+	createCharset(32, 36, 4)
+	.fill $400, 0
+	createCharset(32, 40, 4)
+	.fill $400, 0
+	createCharset(32, 44, 4)
+	.fill $400, 0
