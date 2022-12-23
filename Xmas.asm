@@ -23,6 +23,7 @@ TODO:
 .const nrScreens = 256 / charsPerLine // number of different screens with one line repeated
 .const nrCharsets = ($4000 - ($400 * nrScreens)) / $800;
 
+
 * = $0810
 
 nmi:
@@ -57,12 +58,11 @@ fillcolor:
   inx
   bne fillcolor
 
-  irqSet(0, mainIrq)
+  irqSet($10, mainIrq)
 
   lda #$01
   sta $d01a   // Enable raster interrupts and turn interrupts back on
   cli
-
   jmp *       // Do nothing and let the interrupts do all the work.
 
 * = $1000 "Music"
@@ -72,6 +72,10 @@ fillcolor:
 * = $c000 "IRQ"
 
 mainIrq:
+
+// .break
+
+irqStabilize()
 
 li:
 	ldx #00
@@ -90,6 +94,7 @@ skip:
 	stx li+1
 
 // ack and return
+  irqSet($10, mainIrq)
   asl $d019
   rti
 
