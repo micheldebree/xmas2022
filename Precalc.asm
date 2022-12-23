@@ -87,8 +87,23 @@ sineTable:
   }
 }
 
+* = $9000 "Image"
 
-// Screen data bank $4000
+
+// the image is a list of pointers to the sinetables
+// 1 sinetable = 1 spinning line
+image:
+.for (var i = 0; i < nrLineLengths; i++) {
+  .const pointer = sineTable + ( i * sineLength)
+  .byte <pointer, >pointer
+}
+.for (var i = 0; i < 200 - nrLineLengths; i++) {
+  .byte 0,0 // reserve space
+}
+
+
+
+
 
 .macro fillScreenWithChars(screenNr) {
   .for (var y = 0; y < screenHeight; y++) {
@@ -99,7 +114,6 @@ sineTable:
       .byte 0
     }
   }
-
 }
 
 .const nrCharLines = 256 / nrCharsPerLine
@@ -116,19 +130,11 @@ sineTable:
   fillScreenWithChars(i);
 }
 
-// * = $4000
-  // testScreen()
-
-
-// fill the screen with 8 different character lines
-
-
 // bank $4000
 // 8 screens
 // 4 fonts: line lengtes 0-7, 8-15, 16-23, 24-31
 // bank $8000
 // 4 fonts: line lengtes 
-
 
 // nrScreen = 8 for bank 1, 4 for bank 2
 .macro createCharset(charsPerLine, lineNr, nrScreens) {
@@ -152,8 +158,6 @@ sineTable:
     }
   }
 }
-
-
 
 // fill the charset
 * = $4000 + $2000 "Charsets bank 1"
