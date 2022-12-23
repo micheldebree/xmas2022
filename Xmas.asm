@@ -1,5 +1,6 @@
 #import "VIC.asm"
 #import "Precalc.asm"
+#import "RasterIrq.asm"
 BasicUpstart2(start)
 
 /**
@@ -24,27 +25,53 @@ TODO:
 
 * = $0810
 
+nmi:
+  rti
 start:
-	sei
+  sei             // Turn off interrupts
+  jsr $ff81       // ROM Kernal function to clear the screen
+  lda #%00110101
+  sta $01         // Turn off Kernal ROM
 
-	vicSetupPointers($4000, $0000, $2000)
+  lda #$7f
+  sta $dc0d      // no timer IRQs
+  lda $dc0d      // acknowledge CIA interrupts
 
-	lda #$01
-	ldx #$00
+  lda #<nmi
+  sta $fffa
+  lda #>nmi
+  sta $fffb      // dummy NMI (Non Maskable Interupt) to avoid crashing due to RESTORE
+
+  lda #%00011000
+  sta $d011
+
+
+  vicSetupPointers($4000, $0000, $2000)
+  lda #$01
+  ldx #$00
 fillcolor:
-	sta $d800,x
-	sta $d900,x
-	sta $da00,x
-	sta $db00,x
-	inx
-	bne fillcolor
+  sta $d800,x
+  sta $d900,x
+  sta $da00,x
+  sta $db00,x
+  inx
+  bne fillcolor
 
+  irqSet(0, mainIrq)
 
-loop:
-	lda #$ff
-wait:
-	cmp $d012
-	bne wait
+  lda #$01
+  sta $d01a   // Enable raster interrupts and turn interrupts back on
+  cli
+
+  jmp *       // Do nothing and let the interrupts do all the work.
+
+* = $1000 "Music"
+
+.fill $1000,0
+
+* = $c000 "IRQ"
+
+mainIrq:
 
 li:
 	ldx #00
@@ -61,10 +88,10 @@ li:
 	ldx #0
 skip:
 	stx li+1
-	jmp loop
+
+// ack and return
+  asl $d019
+  rti
 
 
-* = $1000 "Music"
-
-.fill $1000,0
 
