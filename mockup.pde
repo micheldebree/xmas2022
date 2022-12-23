@@ -9,8 +9,9 @@ int nrCharLines = 256 / widthInChars; // the max. number of different character 
 int totalScreensSize = nrCharLines * 0x400;
 int nrCharSets = (bankSize - totalScreensSize) / 0x800;
 
-int nrBanks = 2;
-int nrLines = nrCharLines * nrCharSets * nrBanks;
+//int nrBanks = 2;
+//int nrLines = nrCharLines * nrCharSets * nrBanks;
+int nrLines=48;
 
 int maxLineLength = (widthInChars - 1) * 8; //(keep 1 character empty to fill empty positions)
 
@@ -38,7 +39,7 @@ void setup() {
   //image = loadImage("bell160x200.png");
    //image = loadImage("snowman160x200.png");
 
-  float scale = 1.3;
+  float scale = 2;
   
   // colors snowman
   //for (int i =0; i < 33; i++) {
@@ -101,7 +102,7 @@ void setup() {
 
   print (nrCharLines, " different character lines max\n");
   print ("Room for ", nrCharSets, " char sets\n");
-  print ("Using ", nrBanks, " banks\n");
+  //print ("Using ", nrBanks, " banks\n");
   print ("So ", nrLines, " different lines\n");
   print (nrLines * sineTableLength, " bytes needed for sinetables");
   // $0800-$1000: code
@@ -130,7 +131,7 @@ void setup() {
         pixelCount++;
       }
     }
-    linePhases[y] = Math.round(pixelCount / scale) % 64;
+    linePhases[y] = Math.round(pixelCount / scale) % nrLines;
   }
 
 }

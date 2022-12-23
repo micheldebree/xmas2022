@@ -1,17 +1,21 @@
 // TODO:: use more accurate math?
+#import "VIC.asm"
 
-BasicUpstart2(preview)
-
-.const vicBankSize = $4000 // size of one VIC bank
-.const screenSize = $400 // size of one text screen
-.const fontSize = $800 // size of one font
 .const nrBanks = 2 // number of VIC banks to use
 .const nrCharsPerLine = 32 // width of the animation in characters
+.const maxLineLength = nrCharsPerLine * 8
 .const maxLineSize = nrCharsPerLine * 8 // max width of a line in pixels
 .const nrScreensPerBank = 8 // number of different text screens to use
 // the number of fonts that fit in a VIC bank after memory for the screens has been used
-.const nrFontsPerBank = (vicBankSize - nrScreensPerBank * screenSize) / fontSize
+.const nrFontsPerBank = (vicBankSize - nrScreensPerBank * vicScreenSize) / vicFontSize
 .const sineLength = 128 // length of the sineTable
+
+// the number of different line lengths we can display
+// the second bank cannot use $9000-$a000, giving us 4 screens instead of 8
+.const nrLineLengths = (nrScreensPerBank * nrFontsPerBank) + (nrScreensPerBank / 2 * nrFontsPerBank)
+
+.print ("Number of fonts per bank: " + nrFontsPerBank)
+.print ("Number of different line lengths: " + nrLineLengths)
 
 // for line x1 to x2, get the byte representing the segment at charIndex
 .function lineSegmentBits(x1, x2, charIndex) {
@@ -33,72 +37,6 @@ BasicUpstart2(preview)
 	.return result
 }
 
-// Set the vic bank to start at
-.macro vicSelectBank(startAddress) {
-	.assert "startAddess must be a multiple of $4000", mod(startAddress, $4000), 0
-	lda $dd00
-	and #%11111100
-	ora #%11 - startAddress / $4000
-	sta $dd00
-}
-
-.function calcD018(screenNr, charSetNr) {
-	.return screenNr << 4 | charSetNr << 1
-}
-
-// relative to the bank
-.macro vicSetGraphicsPointers(baseAddress, screenOffset, fontOffset) {
-	.errorif mod(screenOffset,$400) != 0, "screenOffset must be a multiple op $400"
-	.errorif mod(fontOffset, $800) != 0, "fontOffset must be a multiple op $800"
-	.errorif screenOffset > $4000, "screenOffset must be below $4000"
-	.errorif fontOffset > $4000, "fontOffset must be below $4000"
-
-	vicSelectBank(baseAddress)
-	lda #calcD018(fontOffset / $800, screenOffset / $400)
-	sta $d018
-}
-
-* = $0810
-
-preview:
-	sei
-	vicSetGraphicsPointers($4000, $0000, $2000)
-
-	lda #$01
-	ldx #$00
-fillcolor:
-	sta $d800,x
-	sta $d900,x
-	sta $da00,x
-	sta $db00,x
-	inx
-	bne fillcolor
-
-
-loop:
-	lda #$ff
-wait:
-	cmp $d012
-	bne wait
-
-li:
-	ldx #00
-
-  ldy sineTable,x
-
-	lda d018Values,y
-	sta $d018
-	lda dd00Values,y
-	sta $dd00
-	inx
-	cpx #sineLength
-	bcc skip
-	ldx #0
-skip:
-	stx li+1
-	jmp loop
-
-
 .macro testScreen() {
 	.const charsPerLine = 32
 	.const lines = 256 / charsPerLine
@@ -118,7 +56,7 @@ skip:
 .macro indexD018(nrScreens, nrFonts) {
 	.for (var fi = 0; fi < nrFonts; fi++) {
 		.for (var si = 0; si < nrScreens; si++) {
-			.byte calcD018(si, 4 + fi)
+			.byte vicCalcD018(si, 4 + fi)
 		}
 	}
 }
@@ -143,8 +81,9 @@ dd00Values:
 
 sineTable:
 
+// TODO: make 48 sinetables
 .for (var t = 0; t < sineLength; t++) {
-	.byte 48 * sin(toRadians(t * 180/sineLength))
+	.byte nrLineLengths * sin(toRadians(t * 180/sineLength))
 }
 
 
@@ -152,21 +91,20 @@ sineTable:
 
 .macro fillScreenWithChars(screenNr) {
 	.for (var y = 0; y < screenHeight; y++) {
-		.for (var x =0; x < charsPerLine; x++) {
-				.byte screenNr * charsPerLine + x
+		.for (var x =0; x < nrCharsPerLine; x++) {
+				.byte screenNr * nrCharsPerLine + x
 		}
-		.for (var x = 0; x < 40-charsPerLine; x++) {
+		.for (var x = 0; x < 40 - nrCharsPerLine; x++) {
 			.byte 0
 		}
 	}
 
 }
 
-.const charsPerLine = 32
-.const nrLines = 256 / charsPerLine
+.const nrCharLines = 256 / nrCharsPerLine
 .const screenHeight = 25
 
-.for (var i = 0; i < nrLines; i++) {
+.for (var i = 0; i < nrCharLines; i++) {
 
 	* = $4000 + (i * $400) "Screen bank 1"
 	fillScreenWithChars(i);
@@ -189,13 +127,10 @@ sineTable:
 // 4 fonts: line lengtes 
 
 
-
-
 // nrScreen = 8 for bank 1, 4 for bank 2
 .macro createCharset(charsPerLine, lineNr, nrScreens) {
 
-	.const maxLineLength = charsPerLine * 8
-	.const lineStep = maxLineLength / (2*48) // 48 lines in total
+	.const lineStep = maxLineLength / (2 * nrLineLengths) // 48 lines in total
 
   // 8 lines of characters
 	.for (var y =0; y < nrScreens; y++) {
@@ -218,7 +153,7 @@ sineTable:
 
 
 // fill the charset
-* = $4000+$2000 "Charsets bank 1"
+* = $4000 + $2000 "Charsets bank 1"
 
 	createCharset(32, 0, 8)
 	createCharset(32, 1*8, 8)

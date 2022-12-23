@@ -22,6 +22,8 @@ EXOMIZER=/usr/local/bin/exomizer
 %.debug: %.prg
 	$(DEBUGGER) -prg "$<" -wait 5000 -autojmp -layout 9
 
+Xmas.exe.prg: Xmas.prg
+
 .PHONY: clean
 clean:
 	rm -f *.prg
