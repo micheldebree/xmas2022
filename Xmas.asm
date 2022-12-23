@@ -11,7 +11,7 @@ TODO:
 - [X] Create $d018 table with ob entry for each line
 - [X] Create $dd00 table with entry for each line
 - [X] Make spinning rectangle (no raster code yet)
-- [ ] Create sinetable for each line
+- [X] Create sinetable for each line
 - [ ] Create image table
 - [ ] Add raster code
 - [ ] Add colors
@@ -49,7 +49,7 @@ wait:
 li:
 	ldx #00
 
-  ldy sineTable,x
+  ldy (sineTable + 47 * sineLength),x
 
 	lda d018Values,y
 	sta $d018
@@ -68,6 +68,3 @@ skip:
 
 .fill $1000,0
 
-* = $2000 "Scroll font"
-
-.fill $800,0

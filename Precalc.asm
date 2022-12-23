@@ -61,7 +61,7 @@
 	}
 }
 
-* = $3000 "d018 and dd00 values"
+* = $2000 "d018 and dd00 values"
 
 d018Values:
 	indexD018(8, 4)
@@ -75,15 +75,16 @@ dd00Values:
 		.byte %01 // bank $8000
 	}
 
-
 .align $100
-* = * "Sine table"
+
+* = * "Sine tables"
 
 sineTable:
 
-// TODO: make 48 sinetables
-.for (var t = 0; t < sineLength; t++) {
-	.byte nrLineLengths * sin(toRadians(t * 180/sineLength))
+.for (var i = 0; i < nrLineLengths; i++) {
+	.for (var t = 0; t < sineLength; t++) {
+		.byte i * sin(toRadians(t * 180/sineLength))
+	}
 }
 
 
@@ -105,12 +106,14 @@ sineTable:
 .const screenHeight = 25
 
 .for (var i = 0; i < nrCharLines; i++) {
-
 	* = $4000 + (i * $400) "Screen bank 1"
 	fillScreenWithChars(i);
+}
+
+// bank 2 cannot use $9000-$a000 so has twice as few screens
+.for (var i = 0; i < nrCharLines  / 2; i++) {
 	* = $8000 + (i * $400) "Screen bank 2"
 	fillScreenWithChars(i);
-
 }
 
 // * = $4000
