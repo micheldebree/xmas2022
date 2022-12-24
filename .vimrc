@@ -16,6 +16,7 @@ set softtabstop=2
 set smartindent
 set expandtab
 set foldmethod=marker
+set foldmarker={,}
 set foldlevel=0
 set foldcolumn=3
 set autochdir

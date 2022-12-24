@@ -28,12 +28,17 @@
 //  negative edge of �0 at the beginning of the cycle RASTER >= $30 and RASTER
 //  <= $f7 and the lower three bits of RASTER are equal to YSCROLL and if the
 //  DEN bit was set during an arbitrary cycle of raster line $30.
-  .function isBadLine(raster, yscroll) {
-    .const rasterBits = raster & %111
+  .function isBadLine(rasterY, yscroll) {
+    .const rasterBits = rasterY & %111
     .const yscrollBits = yscroll & %111
-    .const result = (raster >= $30 && raster <= $f7) && rasterBits == yscrollBits
+    .const result = (rasterY >= $30 && rasterY <= $f7) && rasterBits == yscrollBits
     .return result
   }
+
+  // calculate the value for D011 that triggers a bad line on rasterY
+  .function badlineD011(currentD011, rasterY) {
+    .return (currentD011 & %11111000) | (rasterY & %111)
+   }
 
   .macro vicSetupPointers(baseAddress, screenOffset, fontOffset) {
     .errorif mod(screenOffset, vicScreenSize) != 0, "screenOffset must be a multiple op $400"

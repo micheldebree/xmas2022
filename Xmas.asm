@@ -3,7 +3,8 @@
 #import "RasterIrq.asm"
 BasicUpstart2(start)
 
-/**
+/** {
+
 TODO:
 - [X] Map out memory
 - [ ] Set up interrupt
@@ -17,16 +18,22 @@ TODO:
 - [ ] Add raster code
 - [ ] Add colors
 - [ ] Optimize by doing precalc in assembler
- */
+Ohttps://codebase64.org/doku.php?id=base:fpp-first-line
+
+} */
+
+// global constants {
 
 .const charsPerLine = 32 // characters per line in the screen
 .const nrScreens = 256 / charsPerLine // number of different screens with one line repeated
 .const nrCharsets = ($4000 - ($400 * nrScreens)) / $800;
+.const firstRasterLine = $31
 
-  .const firstRasterLine = $31
+// }
 
-* = $0810
+* = $0810 "Code"
 
+// setup irq {
 nmi:
   rti
 start:
@@ -64,75 +71,65 @@ fillcolor:
 
   irqSet(firstRasterLine, mainIrq)
 
+// .break
   lda #$01
   sta $d01a   // Enable raster interrupts and turn interrupts back on
   cli
   jmp *       // Do nothing and let the interrupts do all the work.
-
-* = $1000 "Music"
-
-.fill $1000,0
-
-* = $e000 "IRQ"
+// }
 
 mainIrq:
-
-// .break
 
   irqStabilize()
   // jsr animate
 // .break
   wasteCycles(50)
 // .break
-    .const currentLine = $34
-    ldx #0
-  .for (var y = 0; y < 200; y++) {
-    .if (mod(y,2) == 0) {
-      lda #0   // 2
-    }
-    else {
-      lda #2   // 2
-    }
-    sta $d021 // 6
+.const currentLine = $34
 
+.label lineIndex = * + 1
 
+  ldx #0
 
-    wasteCycles(14)
-      // nop // 12
-      // nop // 14
-      // nop // 16
-      // nop // 18
-      // nop // 20
-    .if (!isBadLine(currentLine + y, yScroll)) {
-      .print ("good: " + (currentLine + y))
-      bit $ea // 23
-      wasteCycles(40)
-      // nop // 25
-      // nop // 27
-      // nop // 29
-      // nop // 31
-      // nop // 33
-      // nop // 35
-      // nop // 37
-      // nop // 39
-      // nop // 41
-      // nop // 43
-      // nop // 45
-      // nop // 47
-      // nop // 49
-      // nop // 51
-      // nop // 53
-      // nop // 55
-      // nop // 57
-      // nop // 59
-      // nop // 61
-      // nop // 63
-    } else {
-      .print ("bad!")
-    }
+// .break
+
+  .for (var y = 0; y < 200; y++) { // unrolled raster code
+    // .if (mod(y,2) == 0) {
+      // lda #0   // +2 = 2
+    // }
+    // else {
+      // lda #2   // +2 = 2
+    // }
+
+    lda #badlineD011(%00011000, currentLine + y)
+    sta $d011
+// .break
+    lda sineTableD018 + mod(y, nrLineLengths) * sineLength,x // +4 = 4
+    sta $d018 // +4 = 8
+    // lda sineTableDD00 + mod(y, nrLineLengths) * sineLength,x // +4 = 12
+    // sta $dd00 // +4 = 16
+    wasteCycles(6)
+    // inc $d011 // +6 = 22
+
+    // wasteCycles(4)
+    // .if (!isBadLine(currentLine + y, yScroll)) {
+    //   .print ("good: " + (currentLine + y))
+    //   bit $ea // 23
+    //   wasteCycles(40)
+    // } else {
+    //   .print ("bad!")
+    // }
   }
+
+  inx
+  cpx #sineLength
+  bne !skip+
+  ldx #0
+!skip:
+  stx lineIndex
+
 // ack and return
-jsr animate
+// jsr animate
   irqSet(firstRasterLine, mainIrq)
   asl $d019
   rti
@@ -147,29 +144,8 @@ li:
   sty $dd00
   inx
   cpx #sineLength
-  bcc skip
+  bne skip
   ldx #0
 skip:
   stx li+1
   rts
-
-// animate:
-// li:
-//   ldx #00
-
-//   ldy (sineTable + 47 * sineLength),x
-
-//   lda d018Values,y
-//   sta $d018
-//   lda dd00Values,y
-//   sta $dd00
-//   inx
-//   cpx #sineLength
-//   bcc skip
-//   ldx #0
-// skip:
-//   stx li+1
-//   rts
-
-
-

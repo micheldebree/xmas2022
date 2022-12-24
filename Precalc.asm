@@ -1,4 +1,5 @@
 // TODO:: use more accurate math?
+
 #import "VIC.asm"
 
 .const nrBanks = 2 // number of VIC banks to use
@@ -59,12 +60,12 @@
   .var screen
   .var font
   .if (bank == 0) {
-    .eval screen = mod(lineNrInBank, 8) // 8 screens in one bank
-    .eval font = 4 + (lineNrInBank / 8)
+    .eval screen = mod(lineNrInBank,8) // 8 screens in one bank
+    .eval font = 4 + (lineNrInBank / 8 )
   }
   else {
     .eval screen = mod(lineNrInBank, 4) // 4 screens in one bank
-    .eval font = 4 + (lineNrInBank / 4)
+    .eval font = 4 + (lineNrInBank /4) 
   }
   .return vicCalcD018(screen, font)
 }
@@ -81,7 +82,7 @@
 //   }
 // }
 
-* = $2000 "d018 and dd00 values"
+* = $3000 "Sine tables"
 
 // d018Values:
 //   indexD018(8, 4)
@@ -94,10 +95,6 @@
 //   .for (var i = 0; i < 4 * 4; i++) {
 //     .byte %01 // bank $8000
 //   }
-
-.align $100
-
-* = * "Sine tables"
 
 sineTableD018:
 
@@ -117,20 +114,16 @@ sineTableDD00:
 
 * = $9000 "Image"
 
-
 // the image is a list of pointers to the sinetables
 // 1 sinetable = 1 spinning line
 image:
+
 .for (var i = 0; i < nrLineLengths; i++) {
   .byte i
 }
 .for (var i = 0; i < 200 - nrLineLengths; i++) {
   .byte 0,0 // reserve space
 }
-
-
-
-
 
 .macro fillScreenWithChars(screenNr) {
   .for (var y = 0; y < screenHeight; y++) {
