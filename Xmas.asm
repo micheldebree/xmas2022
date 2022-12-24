@@ -139,14 +139,12 @@ jsr animate
 
 animate:
 li:
+// .break
   ldx #00
-
-  ldy (sineTable + 47 * sineLength),x
-
-  lda d018Values,y
-  sta $d018
-  lda dd00Values,y
-  sta $dd00
+  ldy (sineTableD018 + 47 * sineLength),x
+  sty $d018
+  ldy (sineTableDD00 + 47 * sineLength),x
+  sty $dd00
   inx
   cpx #sineLength
   bcc skip
@@ -154,6 +152,24 @@ li:
 skip:
   stx li+1
   rts
+
+// animate:
+// li:
+//   ldx #00
+
+//   ldy (sineTable + 47 * sineLength),x
+
+//   lda d018Values,y
+//   sta $d018
+//   lda dd00Values,y
+//   sta $dd00
+//   inx
+//   cpx #sineLength
+//   bcc skip
+//   ldx #0
+// skip:
+//   stx li+1
+//   rts
 
 
 

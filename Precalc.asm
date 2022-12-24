@@ -8,7 +8,7 @@
 .const nrScreensPerBank = 8 // number of different text screens to use
 // the number of fonts that fit in a VIC bank after memory for the screens has been used
 .const nrFontsPerBank = (vicBankSize - nrScreensPerBank * vicScreenSize) / vicFontSize
-.const sineLength = 128 // length of the sineTable
+.const sineLength = 32 // length of the sineTable
 
 // the number of different line lengths we can display
 // the second bank cannot use $9000-$a000, giving us 4 screens instead of 8
@@ -53,37 +53,65 @@
   }
 }
 
-.macro indexD018(nrScreens, nrFonts) {
-  .for (var fi = 0; fi < nrFonts; fi++) {
-    .for (var si = 0; si < nrScreens; si++) {
-      .byte vicCalcD018(si, 4 + fi)
-    }
+.function calcD018(lineNr) {
+  .const bank = floor(lineNr / 32)
+  .const lineNrInBank = mod(lineNr, 32)
+  .var screen
+  .var font
+  .if (bank == 0) {
+    .eval screen = mod(lineNrInBank, 8) // 8 screens in one bank
+    .eval font = 4 + (lineNrInBank / 8)
   }
+  else {
+    .eval screen = mod(lineNrInBank, 4) // 4 screens in one bank
+    .eval font = 4 + (lineNrInBank / 4)
+  }
+  .return vicCalcD018(screen, font)
 }
+
+.function calcDD00(lineNr) {
+  .return lineNr < 32 ? %10 : %01
+}
+
+// .macro indexD018(nrScreens, nrFonts) {
+//   .for (var fi = 0; fi < nrFonts; fi++) {
+//     .for (var si = 0; si < nrScreens; si++) {
+//       .byte vicCalcD018(si, 4 + fi)
+//     }
+//   }
+// }
 
 * = $2000 "d018 and dd00 values"
 
-d018Values:
-  indexD018(8, 4)
-  indexD018(4, 4) // $9000-$a000 sees Char ROM so are unusable
+// d018Values:
+//   indexD018(8, 4)
+//   indexD018(4, 4) // $9000-$a000 sees Char ROM so are unusable
 
-dd00Values:
-  .for (var i = 0; i < 4 * 8; i++) {
-    .byte %10 // bank $4000
-  }
-  .for (var i = 0; i < 4 * 4; i++) {
-    .byte %01 // bank $8000
-  }
+// dd00Values:
+//   .for (var i = 0; i < 4 * 8; i++) {
+//     .byte %10 // bank $4000
+//   }
+//   .for (var i = 0; i < 4 * 4; i++) {
+//     .byte %01 // bank $8000
+//   }
 
 .align $100
 
 * = * "Sine tables"
 
-sineTable:
+sineTableD018:
 
 .for (var i = 0; i < nrLineLengths; i++) {
   .for (var t = 0; t < sineLength; t++) {
-    .byte i * sin(toRadians(t * 180/sineLength))
+    .byte calcD018(i * sin(toRadians(t * 180/sineLength)))
+  }
+}
+
+sineTableDD00:
+
+.for (var i = 0; i < nrLineLengths; i++) {
+  .for (var t = 0; t < sineLength; t++) {
+    .byte calcDD00(i * sin(toRadians(t * 180/sineLength)))
   }
 }
 
@@ -94,8 +122,7 @@ sineTable:
 // 1 sinetable = 1 spinning line
 image:
 .for (var i = 0; i < nrLineLengths; i++) {
-  .const pointer = sineTable + ( i * sineLength)
-  .byte <pointer, >pointer
+  .byte i
 }
 .for (var i = 0; i < 200 - nrLineLengths; i++) {
   .byte 0,0 // reserve space
