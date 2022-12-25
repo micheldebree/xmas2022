@@ -27,8 +27,8 @@ Ohttps://codebase64.org/doku.php?id=base:fpp-first-line
 .const charsPerLine = 32 // characters per line in the screen
 .const nrScreens = 256 / charsPerLine // number of different screens with one line repeated
 .const nrCharsets = ($4000 - ($400 * nrScreens)) / $800;
-.const firstRasterY = $31
-
+.const firstRasterY = $33 -1 
+.const d011Value = %00010000 // 24 rows
 // }
 
 * = $0810 "Code"
@@ -53,7 +53,7 @@ start:
 
 .const yScroll = 0
 
-  lda #%00011000
+  lda #d011Value
   sta $d011
 
   vicSetupPointers($4000, $0000, $2000)
@@ -94,11 +94,14 @@ mainIrq: // {
 // .break
 
   .for (var y = 0; y < 200; y++) { // unrolled raster code
-    lda #badlineD011(%00011000, currentRasterY + y) // trigger badline
+    lda #badlineD011(d011Value, currentRasterY + y) // trigger badline
     sta $d011
     lda sineTableD018 + mod(y, nrLineLengths) * sineLength,x // +4 = 4
     sta $d018 // +4 = 8
     wasteCycles(6)
+    .if (y == 198) {
+      // .break
+    }
   }
 
   inx
