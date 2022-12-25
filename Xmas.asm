@@ -3,6 +3,8 @@
 #import "RasterIrq.asm"
 BasicUpstart2(start)
 
+.var tree = LoadBinary("tree.bin")
+
 /** {
 
 TODO:
@@ -58,8 +60,12 @@ start:
 
   vicSetupPointers($4000, $0000, $2000)
 
-  lda #$01
+
+
+  lda #$05
   ldx #$00
+  stx $d020
+  stx $d021
 
 fillcolor:
   sta $d800,x
@@ -96,7 +102,8 @@ mainIrq: // {
   .for (var y = 0; y < 200; y++) { // unrolled raster code
     lda #badlineD011(d011Value, currentRasterY + y) // trigger badline
     sta $d011
-    lda sineTableD018 + mod(y, nrLineLengths) * sineLength,x // +4 = 4
+    // lda sine TableD018 + mod(y, nrLineLengths) * sineLength,x // +4 = 4
+    lda sineTableD018 + tree.get(y) * sineLength,x
     sta $d018 // +4 = 8
     wasteCycles(6)
     .if (y == 198) {

@@ -22,7 +22,10 @@ EXOMIZER=/usr/local/bin/exomizer
 %.debug: %.prg
 	$(DEBUGGER) -prg "$<" -wait 5000 -autojmp -layout 9
 
-Xmas.prg: Xmas.asm Precalc.asm VIC.asm
+%.bin: %.png
+	node convert_image.js
+
+Xmas.prg: Xmas.asm Precalc.asm VIC.asm tree.bin
 
 .PHONY: clean
 clean:
@@ -32,3 +35,4 @@ clean:
 	rm -f *.vs
 	rm -f *.dbg
 	rm -f *.d64
+	rm -f *.bin

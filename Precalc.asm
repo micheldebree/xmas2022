@@ -33,7 +33,7 @@
       }
       .eval mask = mask >> 1
   }
-// .print ("line segment " + x1 + " to " + x2 + " for char " + charIndex + " is " + result)
+.print ("line segment " + x1 + " to " + x2 + " for char " + charIndex + " is " + result)
   .return result
 }
 
@@ -66,7 +66,6 @@
 sineTableD018:
 .for (var i = 0; i < nrLineLengths; i++) {
   .for (var t = 0; t < sineLength; t++) {
-    .print "Linenr" + i
     .byte calcD018(i * sin(toRadians(t * 180 / sineLength)))
   }
 }
@@ -81,6 +80,7 @@ image:
   .byte 0,0 // reserve space
 }
 
+.const screenHeight = 25
 .macro fillScreenWithChars(screenNr) {
   .for (var y = 0; y < screenHeight; y++) {
     .for (var x = 0; x < 20; x++) {
@@ -93,7 +93,6 @@ image:
 }
 
 .const nrCharLines = 256 / nrCharsPerLine
-.const screenHeight = 25
 
 .for (var i = 0; i < nrCharLines; i++) {
   * = $4000 + (i * $400) "Screen"
