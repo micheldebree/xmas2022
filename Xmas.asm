@@ -27,7 +27,7 @@ Ohttps://codebase64.org/doku.php?id=base:fpp-first-line
 .const charsPerLine = 32 // characters per line in the screen
 .const nrScreens = 256 / charsPerLine // number of different screens with one line repeated
 .const nrCharsets = ($4000 - ($400 * nrScreens)) / $800;
-.const firstRasterLine = $31
+.const firstRasterY = $31
 
 // }
 
@@ -69,7 +69,7 @@ fillcolor:
   inx
   bne fillcolor
 
-  irqSet(firstRasterLine, mainIrq)
+  irqSet(firstRasterY, mainIrq)
 
 // .break
   lda #$01
@@ -85,7 +85,7 @@ mainIrq: // {
 // .break
   wasteCycles(50)
 // .break
-.const currentLine = $34
+.const currentRasterY = firstRasterY + 3
 
 .label lineIndex = * + 1
 
@@ -94,31 +94,11 @@ mainIrq: // {
 // .break
 
   .for (var y = 0; y < 200; y++) { // unrolled raster code
-    // .if (mod(y,2) == 0) {
-      // lda #0   // +2 = 2
-    // }
-    // else {
-      // lda #2   // +2 = 2
-    // }
-
-
-    lda #badlineD011(%00011000, currentLine + y) // trigger badline
+    lda #badlineD011(%00011000, currentRasterY + y) // trigger badline
     sta $d011
     lda sineTableD018 + mod(y, nrLineLengths) * sineLength,x // +4 = 4
     sta $d018 // +4 = 8
-    // lda sineTableDD00 + mod(y, nrLineLengths) * sineLength,x // +4 = 12
-    // sta $dd00 // +4 = 16
     wasteCycles(6)
-    // inc $d011 // +6 = 22
-
-    // wasteCycles(4)
-    // .if (!isBadLine(currentLine + y, yScroll)) {
-    //   .print ("good: " + (currentLine + y))
-    //   bit $ea // 23
-    //   wasteCycles(40)
-    // } else {
-    //   .print ("bad!")
-    // }
   }
 
   inx
@@ -129,7 +109,7 @@ mainIrq: // {
   stx lineIndex
 
 // ack and return
-  irqSet(firstRasterLine, mainIrq)
+  irqSet(firstRasterY, mainIrq)
   asl $d019
   rti
 //

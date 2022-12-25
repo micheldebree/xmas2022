@@ -3,7 +3,8 @@
 #import "VIC.asm"
 
 .const nrCharsPerLine = 32 // width of the animation in characters
-.const maxLineLength = nrCharsPerLine * 8
+// .const maxLineLength = nrCharsPerLine * 8
+.const maxLineLength = 20 * 8
 .const maxLineSize = nrCharsPerLine * 8 // max width of a line in pixels
 .const nrScreensPerBank = 8 // number of different text screens to use
 // the number of fonts that fit in a VIC bank after memory for the screens has been used
@@ -82,11 +83,11 @@ image:
 
 .macro fillScreenWithChars(screenNr) {
   .for (var y = 0; y < screenHeight; y++) {
-    .for (var x =0; x < nrCharsPerLine; x++) {
+    .for (var x = 0; x < 20; x++) {
         .byte screenNr * nrCharsPerLine + x
     }
-    .for (var x = 0; x < 40 - nrCharsPerLine; x++) {
-      .byte 0
+    .for (var x = 0; x < 20; x++) {
+        .byte screenNr * nrCharsPerLine + x
     }
   }
 }
@@ -98,7 +99,6 @@ image:
   * = $4000 + (i * $400) "Screen"
   fillScreenWithChars(i);
 }
-
 
 // bank $4000
 // 8 screens
