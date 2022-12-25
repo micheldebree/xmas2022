@@ -78,7 +78,7 @@ fillcolor:
   jmp *       // Do nothing and let the interrupts do all the work.
 // }
 
-mainIrq:
+mainIrq: // {
 
   irqStabilize()
   // jsr animate
@@ -101,9 +101,9 @@ mainIrq:
       // lda #2   // +2 = 2
     // }
 
-    lda #badlineD011(%00011000, currentLine + y)
+
+    lda #badlineD011(%00011000, currentLine + y) // trigger badline
     sta $d011
-// .break
     lda sineTableD018 + mod(y, nrLineLengths) * sineLength,x // +4 = 4
     sta $d018 // +4 = 8
     // lda sineTableDD00 + mod(y, nrLineLengths) * sineLength,x // +4 = 12
@@ -129,23 +129,8 @@ mainIrq:
   stx lineIndex
 
 // ack and return
-// jsr animate
   irqSet(firstRasterLine, mainIrq)
   asl $d019
   rti
+//
 
-animate:
-li:
-// .break
-  ldx #00
-  ldy (sineTableD018 + 47 * sineLength),x
-  sty $d018
-  ldy (sineTableDD00 + 47 * sineLength),x
-  sty $dd00
-  inx
-  cpx #sineLength
-  bne skip
-  ldx #0
-skip:
-  stx li+1
-  rts

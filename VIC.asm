@@ -19,8 +19,8 @@
   }
 
   .function vicCalcD018(screenNr, fontNr) {
-    .errorif (screenNr >= 16), "screenNr should be below 16"
-    .errorif(fontNr >= 8), "fontNr should be below 8"
+    .errorif (screenNr >= 16), "screenNr should be below 16 but is " + screenNr
+    .errorif(fontNr >= 8), "fontNr should be below 8 but is " + fontNr
     .return screenNr << 4 | fontNr << 1
   }
 
@@ -35,7 +35,7 @@
     .return result
   }
 
-  // calculate the value for D011 that triggers a bad line on rasterY
+  // calculate the new value for D011 that triggers a bad line on rasterY
   .function badlineD011(currentD011, rasterY) {
     .return (currentD011 & %11111000) | (rasterY & %111)
    }
