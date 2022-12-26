@@ -43,7 +43,24 @@ Ohttps://codebase64.org/doku.php?id=base:fpp-first-line
 .const firstRasterY = $33 - 1
 .const d011Value = %00010000 // 24 rows
 .var imageList = List(nrLines)
+.var colorList = List(nrLines)
+.var treeColors = List(nrLines)
 // }
+
+.for (var y = 0; y < nrLines; y++) {
+  .if (y < 179) {
+    .eval treeColors.set(y, 5)
+  }
+  .if (y == 178) {
+    .eval treeColors.set(y, 11)
+  }
+  .if (y >= 179) {
+    .eval treeColors.set(y, 9)
+  }
+  .if (y > 180) {
+    .eval treeColors.set(y, 8)
+  }
+}
 
 * = $8000 "Code"
 
@@ -100,9 +117,10 @@ mainIrq:  {
   irqStabilize()
   // jsr animate
 // .break
-  wasteCycles(50)
+  wasteCycles(52)
 // .break
 .const currentRasterY = firstRasterY + 3
+// .break
 
 .label lineIndex = * + 1
 
@@ -118,8 +136,11 @@ mainIrq:  {
     // lda sineTableD018 + tree.get(y) * sineLength,x
     lda $8000,x
     sta $d018 // +4 = 8
-// .break
-    wasteCycles(6)
+    .eval colorList.set(y, * + 1)
+    lda #5
+    sta $d021
+
+    // wasteCycles(6)
     // .if (y == 198) {
       // .break
     // }
@@ -159,7 +180,7 @@ mainIrq:  {
 .align $100
 
   // store the code address that need to be changed
-//   codeLo:
+//   codeLo
 //   .for (var y = 0; y < 200; y++) {
 //     .byte <imageList.get(y)
 //   }
@@ -189,8 +210,6 @@ mainIrq:  {
 
 @replaceImageTree:
 
-// .break
-// inc $d020
     ldy #0
   .for (var y = 0; y < nrLines; y++) {
     .const sineStart = sineTableD018 + tree.get(y) * sineLength
@@ -198,18 +217,15 @@ mainIrq:  {
     sta imageList.get(y)
     lda #>sineStart
     sta imageList.get(y) + 1
+    lda #treeColors.get(y)
+    sta colorList.get(y)
   }
-// dec $d020
-  lda #5
-  sta $d021
   rts
 
 * = * "Ball image code"
 
 @replaceImageBall:
 
-// .break
-// inc $d020
     ldy #0
   .for (var y = 0; y < nrLines; y++) {
     .const sineStart = sineTableD018 + ball.get(y) * sineLength
@@ -217,10 +233,9 @@ mainIrq:  {
     sta imageList.get(y)
     lda #>sineStart
     sta imageList.get(y) + 1
+    lda #2
+    sta colorList.get(y)
   }
-// dec $d020
-  lda #2
-  sta $d021
   rts
 
 }
