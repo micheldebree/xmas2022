@@ -42,7 +42,7 @@
     // somewhere along these nops, the stabilizerIrq will
     // take over, leaving 1 cycle jitter
 
-    .for (var i = 0; i < 19; i++) { nop }
+    .for (var i = 0; i < 25; i++) { nop }
 
   stabilizerIrq:
     txs // restore stack pointer

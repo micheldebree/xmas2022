@@ -3,4 +3,5 @@
 *.vs
 *.dbg
 *.jar
+*.bin
 node_modules

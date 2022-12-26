@@ -13,6 +13,7 @@
 
 // the number of different line lengths we can display
 .const nrLineLengths = (nrScreensPerBank * nrFontsPerBank)
+.const invertFont = true // use inverted fonts so we can switch color with $d021
 
 .print ("Number of fonts per bank: " + nrFontsPerBank)
 .print ("Number of different line lengths: " + nrLineLengths)
@@ -24,7 +25,7 @@
   .var mask = %10000000 // start of mask for bitPos 0
 
   .if ((x1 <= charX) && (x2 >= charX + 8)) {
-    .return $ff
+    .return invertFont ? 0 : $ff
   }
   .for (var i=0; i < 8; i++ ) { // for each bit (left to right)
       .var bitPos = charX + i
@@ -33,7 +34,10 @@
       }
       .eval mask = mask >> 1
   }
-.print ("line segment " + x1 + " to " + x2 + " for char " + charIndex + " is " + result)
+// .print ("line segment " + x1 + " to " + x2 + " for char " + charIndex + " is " + result)
+  .if (invertFont) {
+    .eval result = result ^ %11111111
+  }
   .return result
 }
 
@@ -68,16 +72,6 @@ sineTableD018:
   .for (var t = 0; t < sineLength; t++) {
     .byte calcD018(i * sin(toRadians(t * 180 / sineLength)))
   }
-}
-
-* = $9000 "Image"
-
-// the image is a list of pointers to the sinetables
-// 1 sinetable = 1 spinning line
-image:
-
-.for (var i = 0; i < 200 - nrLineLengths; i++) {
-  .byte 0,0 // reserve space
 }
 
 .const screenHeight = 25

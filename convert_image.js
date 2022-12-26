@@ -1,9 +1,11 @@
 var Jimp = require('jimp');
 var fs = require('fs');
 
-Jimp.read('tree.png', (err, image) => {
+const filenameIn = process.argv[2]
+const filenameOut = `${filenameIn}.bin`
+
+Jimp.read(filenameIn, (err, image) => {
   if (err) throw err;
-  // image.resize(80, 200);
 
   const scale = image.bitmap.width / 32
 
@@ -14,13 +16,12 @@ Jimp.read('tree.png', (err, image) => {
     for (x = 0; x < image.bitmap.width; x++) {
       const pixel = image.getPixelColor(x,y)
       const alpha = Jimp.intToRGBA(pixel).a
-    nrPixelsInLine += alpha > 128 ? 1 : 0 
+      nrPixelsInLine += alpha > 128 ? 1 : 0
     }
     result[y] = Math.min(Math.round(nrPixelsInLine / scale), 31)
-}
+  }
 
-// console.log(`.byte ${Math.floor(nrPixelsInLine / scale)}`)
-  console.log(result.length)
-  fs.writeFileSync('tree.bin', result)
+  fs.writeFileSync(filenameOut, result)
+  console.log(filenameOut)
 
 });
