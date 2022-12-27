@@ -42,25 +42,12 @@ Ohttps://codebase64.org/doku.php?id=base:fpp-first-line
 .const nrCharsets = ($4000 - ($400 * nrScreens)) / $800;
 .const firstRasterY = $33 - 1
 .const d011Value = %00010000 // 24 rows
-.var imageList = List(nrLines)
+.var ImageAddresses = List(nrLines)
 .var colorList = List(nrLines)
 .var treeColors = List(nrLines)
+.var ballColors = List(nrLines)
 // }
 
-.for (var y = 0; y < nrLines; y++) {
-  .if (y < 179) {
-    .eval treeColors.set(y, 5)
-  }
-  .if (y == 178) {
-    .eval treeColors.set(y, 11)
-  }
-  .if (y >= 179) {
-    .eval treeColors.set(y, 9)
-  }
-  .if (y > 180) {
-    .eval treeColors.set(y, 8)
-  }
-}
 
 * = $8000 "Code"
 
@@ -132,7 +119,7 @@ mainIrq:  {
   .for (var y = 0; y < nrLines; y++) { // unrolled raster code
     lda #badlineD011(d011Value, currentRasterY + y) // trigger badline
     sta $d011
-    .eval imageList.set(y, * + 1)
+    .eval ImageAddresses.set(y, * + 1)
     // lda sineTableD018 + tree.get(y) * sineLength,x
     lda $8000,x
     sta $d018 // +4 = 8
@@ -175,67 +162,42 @@ mainIrq:  {
   rti
 }
 
-{ // image replacement
 
-.align $100
-
-  // store the code address that need to be changed
-//   codeLo
-//   .for (var y = 0; y < 200; y++) {
-//     .byte <imageList.get(y)
-//   }
-// .align $100
-//   codeHi:
-//   .for (var y = 0; y < 200; y++) {
-//     .byte >imageList.get(y)
-//   }
-
-
-// image of the tree
-.align $100
-  treeLo:
+// image: list of linelengths (0-31), one for each image line
+// colors: list of colors, one for each image line
+.macro replaceImage(image, colors) {
   .for (var y = 0; y < nrLines; y++) {
-    .byte <(sineTableD018 + tree.get(y) * sineLength)
+    .const sineStart = sineTableD018 + image.get(y) * sineLength
+    lda #<sineStart
+    sta ImageAddresses.get(y)
+    lda #>sineStart
+    sta ImageAddresses.get(y) + 1
+    lda #colors.get(y)
+    sta colorList.get(y)
   }
+  rts
+}
 
-.align $100
-  treeHi:
-  .for (var y = 0; y < nrLines; y++) {
-    .byte <(sineTableD018 + tree.get(y) * sineLength)
-  }
-
-
+.macro putColor(colorList, startLine, color) {
+  .for (var i = startLine; i < colorList.size(); i++) {
+    .eval colorList.set(i, color)
+   }
+}
 
 * = * "Tree image code"
 
 @replaceImageTree:
 
-    ldy #0
-  .for (var y = 0; y < nrLines; y++) {
-    .const sineStart = sineTableD018 + tree.get(y) * sineLength
-    lda #<sineStart
-    sta imageList.get(y)
-    lda #>sineStart
-    sta imageList.get(y) + 1
-    lda #treeColors.get(y)
-    sta colorList.get(y)
-  }
-  rts
+  putColor(treeColors, 0, 5)
+  putColor(treeColors, 178,11)
+  putColor(treeColors, 179, 9)
+  putColor(treeColors, 181, 8)
+  replaceImage(tree, treeColors)
 
 * = * "Ball image code"
 
 @replaceImageBall:
 
-    ldy #0
-  .for (var y = 0; y < nrLines; y++) {
-    .const sineStart = sineTableD018 + ball.get(y) * sineLength
-    lda #<sineStart
-    sta imageList.get(y)
-    lda #>sineStart
-    sta imageList.get(y) + 1
-    lda #2
-    sta colorList.get(y)
-  }
-  rts
+  putColor(ballColors, 0, 2)
+  replaceImage(ball, ballColors)
 
-}
