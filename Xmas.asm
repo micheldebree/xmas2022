@@ -7,6 +7,8 @@
 .var ball = LoadBinary("ball.png.bin")
 .var candle = LoadBinary("candle.png.bin")
 .var snowman = LoadBinary("snowman.png.bin")
+.var bell = LoadBinary("bell.png.bin")
+.var star = LoadBinary("star.png.bin")
 
 .const nrLines = 196
 
@@ -34,7 +36,7 @@ TODO:
 - [ ] Switch images
 - [ ] Add colors
 - [ ] Optimize by doing precalc in assembler
-Ohttps://codebase64.org/doku.php?id=base:fpp-first-line
+https://codebase64.org/doku.php?id=base:fpp-first-line
 
 } */
 
@@ -90,7 +92,8 @@ fillcolor: {
   bne fillcolor
 }
 
-  jsr replaceImageSnowman
+  jsr replaceImageBell
+  // jsr makeBlack
 
   irqSet(firstRasterY, mainIrq)
 
@@ -111,9 +114,8 @@ mainIrq:  {
 
 .label lineIndex = * + 1
 
-  ldx #0
+  ldx #16
 
-// TODO: count cycles
   .for (var y = 0; y < nrLines; y++) { // unrolled raster code
     lda #badlineD011(d011Value, currentRasterY + y) // trigger badline
     sta $d011
@@ -126,7 +128,6 @@ mainIrq:  {
   }
   lda #0
   sta $d021
- wasteCycles(5)
 
   // open border
   // lda #d011Value & %11110111
@@ -183,11 +184,10 @@ shineD800:
 rasterSine:
 .fill 128, 32 + 32 * sin(toRadians(i*360/128)) // Generates a sine curve
 
-
 replaceImage:
 .label imageIndex = * + 1
   lda #0
-  cmp #3 // nr of images
+  cmp #5 // nr of images
   bcc !skip+
   lda #0
   sta imageIndex
@@ -209,13 +209,16 @@ imageCodeLo:
     .byte <replaceImageTree
     .byte <replaceImageBall
     // .byte <replaceImageCandle
+    .byte <replaceImageBell
     .byte <replaceImageSnowman
+    .byte <replaceImageStar
 
 imageCodeHi:
     .byte >replaceImageTree
     .byte >replaceImageBall
-    // .byte >replaceImageCandle
+    .byte >replaceImageBell
     .byte >replaceImageSnowman
+    .byte >replaceImageStar
 
 // image: list of linelengths (0-31), one for each image line
 // colors: list of colors, one for each image line
@@ -268,6 +271,15 @@ imageCodeHi:
    }
 }
 
+
+@makeBlack:
+
+lda #0
+.for (var y = 0; y < nrLines; y++) {
+  sta colorAddresses.get(y)
+}
+rts
+
 * = * "Tree image code"
 
 @replaceImageTree:
@@ -275,11 +287,9 @@ imageCodeHi:
   .var treeColors = List(nrLines)
   putColor(treeColors, 0, 5)
   putColor(treeColors, 74, 8)
-  putColor(treeColors, 75, 12)
-  putColor(treeColors, 76, 5)
+  putColor(treeColors, 75, 5)
   putColor(treeColors, 124, 8)
-  putColor(treeColors, 125, 12)
-  putColor(treeColors, 126, 5)
+  putColor(treeColors, 125, 5)
   putColor(treeColors, 178,11)
   putColor(treeColors, 179, 9)
   putColor(treeColors, 181, 8)
@@ -313,6 +323,30 @@ imageCodeHi:
   putColor(candleColors, 0, 1)
   replaceImage(candle, candleColors)
 
+* = * "Star image code"
+
+@replaceImageStar:
+
+  .var starColors = List(nrLines)
+  putColor(starColors, 0, 7)
+  replaceImage(star, starColors)
+
+* = * "Bell image code"
+
+@replaceImageBell:
+
+  .var bellColors = List(nrLines)
+  putColor(bellColors, 0, 1)
+  putColor(bellColors, 2, 7)
+  putColor(bellColors, 9, 1)
+  putColor(bellColors, 10, 7)
+  putColor(bellColors, 160, 11)
+  putColor(bellColors, 161, 12)
+  putColor(bellColors, 162, 15)
+  putColor(bellColors, 191, 12)
+  putColor(bellColors, 192, 11)
+  replaceImage(bell, bellColors)
+
 * = * "Snowman image code"
 
 @replaceImageSnowman:
@@ -323,15 +357,11 @@ imageCodeHi:
   putColor(snowmanColors, 32, 15)
   putColor(snowmanColors, 33, 1)
 
-  putColor(snowmanColors, 65, 15)
-  putColor(snowmanColors, 66, 12)
-  putColor(snowmanColors, 67, 15)
-  putColor(snowmanColors, 68, 1)
+  putColor(snowmanColors, 66, 15)
+  putColor(snowmanColors, 67, 1)
 
-  putColor(snowmanColors, 112, 15)
-  putColor(snowmanColors, 113, 12)
-  putColor(snowmanColors, 114, 15)
-  putColor(snowmanColors, 115, 1)
+  putColor(snowmanColors, 113, 15)
+  putColor(snowmanColors, 114, 1)
   putColor(snowmanColors, 190, 15)
   putColor(snowmanColors, 191, 12)
   putColor(snowmanColors, 192, 11)

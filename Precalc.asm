@@ -24,9 +24,11 @@
   .var charX = charIndex * 8 // x where character starts
   .var mask = %10000000 // start of mask for bitPos 0
 
+  // shortcut: if line overlaps char completely, all bits are set
   .if ((x1 <= charX) && (x2 >= charX + 8)) {
     .return invertFont ? 0 : $ff
   }
+
   .for (var i=0; i < 8; i++ ) { // for each bit (left to right)
       .var bitPos = charX + i
       .if ((x1 <= bitPos) && (x2 >= bitPos)) {
@@ -39,22 +41,6 @@
     .eval result = result ^ %11111111
   }
   .return result
-}
-
-.macro testScreen() {
-  .const charsPerLine = 32
-  .const lines = 256 / charsPerLine
-  .const emptyChars = 40 - charsPerLine
-
-  .for (var y = 0; y < lines; y++) {
-    .for (var x = 0; x < charsPerLine; x++) {
-      .byte y * charsPerLine + x
-    }
-    .for (var x = 0; x < emptyChars; x++) {
-      .byte 0
-    }
-
-  }
 }
 
 .function calcD018(lineNr) {
@@ -85,7 +71,6 @@ sineTableD018:
     }
   }
 }
-
 
 .for (var i = 0; i < nrCharLines; i++) {
   * = $4000 + (i * $400) "Screen"

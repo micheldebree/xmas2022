@@ -26,7 +26,7 @@ EXOMIZER=/usr/local/bin/exomizer
 	node convert_image.js "$<"
 
 Xmas.prg: Xmas.asm Precalc.asm VIC.asm \
-	tree.png.bin ball.png.bin candle.png.bin snowman.png.bin
+	tree.png.bin ball.png.bin candle.png.bin snowman.png.bin bell.png.bin star.png.bin
 
 .PHONY: clean
 clean:
