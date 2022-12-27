@@ -51,10 +51,9 @@ Ohttps://codebase64.org/doku.php?id=base:fpp-first-line
 
 * = $8000 "Code"
 
-// setup irq {
 nmi:
   rti
-start:
+start: {
   sei             // Turn off interrupts
   jsr $ff81       // ROM Kernal function to clear the screen
   lda #%00110101
@@ -81,14 +80,16 @@ start:
   sta $d021
   ldx #$00
   stx $d020
-  txa
-fillcolor:
+  lda #0
+
+fillcolor: {
   sta $d800,x
   sta $d900,x
   sta $da00,x
   sta $db00,x
   inx
   bne fillcolor
+}
 
   jsr replaceImageSnowman
 
@@ -99,7 +100,7 @@ fillcolor:
   sta $d01a   // Enable raster interrupts and turn interrupts back on
   cli
   jmp *       // Do nothing and let the interrupts do all the work.
-// }
+}
 
 mainIrq:  {
 
@@ -132,6 +133,7 @@ mainIrq:  {
   stx lineIndex
 
   // inc $d020
+  jsr colorShine
   jsr music.play
   // dec $d020
 
@@ -139,6 +141,35 @@ mainIrq:  {
   irqSet(firstRasterY, mainIrq)
   asl $d019
   rti
+}
+
+colorShine: {
+
+    ldx #40
+!while: // x >= 0
+    txa
+    and #$0f
+    tay
+    lda shineD800,y
+    sta $d800-1,x
+    dex
+    bne !while-
+// .break
+    ldy shineD800
+    ldx #0
+!while: // x >= 0
+    lda shineD800+1,x
+    sta shineD800,x
+    inx
+    cpx #15
+    bne !while-
+    // sty shineD800+15
+
+    rts
+
+shineD800:
+
+.byte 9,11,8,12,15,7,1,7,15,12,8,11,9,0,0,0
 }
 
 replaceImage:
@@ -250,12 +281,15 @@ imageCodeHi:
   putColor(snowmanColors, 32, 15)
   putColor(snowmanColors, 33, 1)
 
-
-  putColor(snowmanColors, 66, 15)
-  putColor(snowmanColors, 67, 1)
+  putColor(snowmanColors, 65, 15)
+  putColor(snowmanColors, 66, 12)
+  putColor(snowmanColors, 67, 15)
+  putColor(snowmanColors, 68, 1)
 
   putColor(snowmanColors, 112, 15)
-  putColor(snowmanColors, 113, 1)
+  putColor(snowmanColors, 113, 12)
+  putColor(snowmanColors, 114, 15)
+  putColor(snowmanColors, 115, 1)
   putColor(snowmanColors, 190, 15)
   putColor(snowmanColors, 191, 12)
   putColor(snowmanColors, 192, 11)
