@@ -5,6 +5,8 @@
 .var music = LoadSid("ggbond.sid")
 .var tree = LoadBinary("tree.png.bin")
 .var ball = LoadBinary("ball.png.bin")
+.var candle = LoadBinary("candle.png.bin")
+.var snowman = LoadBinary("snowman.png.bin")
 
 .const nrLines = 194
 
@@ -43,11 +45,9 @@ Ohttps://codebase64.org/doku.php?id=base:fpp-first-line
 .const firstRasterY = $33 - 1
 .const d011Value = %00010000 // 24 rows
 .var ImageAddresses = List(nrLines)
-.var colorList = List(nrLines)
-.var treeColors = List(nrLines)
-.var ballColors = List(nrLines)
-// }
+.var colorAddresses = List(nrLines)
 
+// }
 
 * = $8000 "Code"
 
@@ -90,6 +90,8 @@ fillcolor:
   inx
   bne fillcolor
 
+  jsr replaceImageSnowman
+
   irqSet(firstRasterY, mainIrq)
 
 // .break
@@ -102,59 +104,36 @@ fillcolor:
 mainIrq:  {
 
   irqStabilize()
-  // jsr animate
-// .break
   wasteCycles(52)
-// .break
+
 .const currentRasterY = firstRasterY + 3
-// .break
 
 .label lineIndex = * + 1
 
   ldx #0
-
-// .break
 
 // TODO: count cycles
   .for (var y = 0; y < nrLines; y++) { // unrolled raster code
     lda #badlineD011(d011Value, currentRasterY + y) // trigger badline
     sta $d011
     .eval ImageAddresses.set(y, * + 1)
-    // lda sineTableD018 + tree.get(y) * sineLength,x
-    lda $8000,x
+    lda sineTableD018 + tree.get(y) * sineLength,x
     sta $d018 // +4 = 8
-    .eval colorList.set(y, * + 1)
+    .eval colorAddresses.set(y, * + 1)
     lda #5
     sta $d021
-
-    // wasteCycles(6)
-    // .if (y == 198) {
-      // .break
-    // }
   }
 
   inx
   cpx #sineLength
   bne !skip+
-
-.label imageIndex = * + 1
-  lda #0
-  and #1
-  bne !next+
-  jsr replaceImageTree
-  jmp !end+
-!next:
-  jsr replaceImageBall
-!end:
-  inc imageIndex
-  ldx #0
+  jsr replaceImage
 !skip:
   stx lineIndex
 
-
-  inc $d020
+  // inc $d020
   jsr music.play
-  dec $d020
+  // dec $d020
 
 // ack and return
   irqSet(firstRasterY, mainIrq)
@@ -162,6 +141,38 @@ mainIrq:  {
   rti
 }
 
+replaceImage:
+.label imageIndex = * + 1
+  lda #0
+  cmp #3 // nr of images
+  bcc !skip+
+  lda #0
+  sta imageIndex
+
+!skip:
+  tax
+  lda imageCodeLo,x
+  sta imageJsr
+  lda imageCodeHi,x
+  sta imageJsr + 1
+  
+.label imageJsr = * + 1
+  jsr replaceImageTree
+  inc imageIndex
+  ldx #0
+  rts
+
+imageCodeLo:
+    .byte <replaceImageTree
+    .byte <replaceImageBall
+    // .byte <replaceImageCandle
+    .byte <replaceImageSnowman
+
+imageCodeHi:
+    .byte >replaceImageTree
+    .byte >replaceImageBall
+    // .byte >replaceImageCandle
+    .byte >replaceImageSnowman
 
 // image: list of linelengths (0-31), one for each image line
 // colors: list of colors, one for each image line
@@ -173,7 +184,7 @@ mainIrq:  {
     lda #>sineStart
     sta ImageAddresses.get(y) + 1
     lda #colors.get(y)
-    sta colorList.get(y)
+    sta colorAddresses.get(y)
   }
   rts
 }
@@ -188,7 +199,14 @@ mainIrq:  {
 
 @replaceImageTree:
 
+  .var treeColors = List(nrLines)
   putColor(treeColors, 0, 5)
+  putColor(treeColors, 74, 8)
+  putColor(treeColors, 75, 12)
+  putColor(treeColors, 76, 5)
+  putColor(treeColors, 124, 8)
+  putColor(treeColors, 125, 12)
+  putColor(treeColors, 126, 5)
   putColor(treeColors, 178,11)
   putColor(treeColors, 179, 9)
   putColor(treeColors, 181, 8)
@@ -198,6 +216,47 @@ mainIrq:  {
 
 @replaceImageBall:
 
-  putColor(ballColors, 0, 2)
+  .var ballColors = List(nrLines)
+  putColor(ballColors, 0, 11)
+  putColor(ballColors, 1, 12)
+  putColor(ballColors, 2, 15)
+  putColor(ballColors, 25, 1)
+  putColor(ballColors, 26, 15)
+
+  putColor(ballColors, 50, 7)
+  putColor(ballColors, 51, 13)
+  putColor(ballColors, 52, 3)
+
+  putColor(ballColors, 190, 15)
+  putColor(ballColors, 191, 14)
+  putColor(ballColors, 192, 6)
   replaceImage(ball, ballColors)
 
+* = * "Candle image code"
+
+@replaceImageCandle:
+
+  .var candleColors = List(nrLines)
+  putColor(candleColors, 0, 1)
+  replaceImage(candle, candleColors)
+
+* = * "Snowman image code"
+
+@replaceImageSnowman:
+
+  .var snowmanColors = List(nrLines)
+  putColor(snowmanColors, 0, 11)
+  putColor(snowmanColors, 31, 12)
+  putColor(snowmanColors, 32, 15)
+  putColor(snowmanColors, 33, 1)
+
+
+  putColor(snowmanColors, 66, 15)
+  putColor(snowmanColors, 67, 1)
+
+  putColor(snowmanColors, 112, 15)
+  putColor(snowmanColors, 113, 1)
+  putColor(snowmanColors, 190, 15)
+  putColor(snowmanColors, 191, 12)
+  putColor(snowmanColors, 192, 11)
+  replaceImage(snowman, snowmanColors)
