@@ -127,9 +127,9 @@ mainIrq:  {
 
   inx
   cpx #sineLength
-  bne !skip+
+  bne !if+
   jsr replaceImage
-!skip:
+!if: // not end of sine
   stx lineIndex
 
   // inc $d020
@@ -145,34 +145,31 @@ mainIrq:  {
 
 colorShine: {
 
+    ldy #0
     ldx #40
+    clc
 !while: // x >= 0
-    txa
-    and #$0f
-    tay
+.label shineIndex = * + 1
     lda shineD800,y
     sta $d800-1,x
+    iny
+    tya
+    and #$0f
+    tay
     dex
     bne !while-
-// .break
-    ldy shineD800
-    ldx #0
-!while: // x >= 0
-    lda shineD800+1,x
-    sta shineD800,x
-    inx
-    cpx #15
-    bne !while-
-    // sty shineD800+15
-
+    inc shineIndex
     rts
 
-shineD800:
 
+.align $100
+shineD800:
+.fill 128,0
 .byte 9,11,8,12,15,7,1,7,15,12,8,11,9,0,0,0
+.fill 128,0
 }
 
-replaceImage:
+replaceImage: 
 .label imageIndex = * + 1
   lda #0
   cmp #3 // nr of images
