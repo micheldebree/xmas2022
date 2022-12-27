@@ -8,7 +8,7 @@
 .var candle = LoadBinary("candle.png.bin")
 .var snowman = LoadBinary("snowman.png.bin")
 
-.const nrLines = 194
+.const nrLines = 196
 
 BasicUpstart2(start)
 
@@ -43,7 +43,7 @@ Ohttps://codebase64.org/doku.php?id=base:fpp-first-line
 .const nrScreens = 256 / charsPerLine // number of different screens with one line repeated
 .const nrCharsets = ($4000 - ($400 * nrScreens)) / $800;
 .const firstRasterY = $33 - 1
-.const d011Value = %00010000 // 24 rows
+.const d011Value = %00011000 // 24 rows
 .var ImageAddresses = List(nrLines)
 .var colorAddresses = List(nrLines)
 
@@ -78,7 +78,7 @@ start: {
 
   lda #$05
   sta $d021
-  ldx #$00
+  ldx #$01
   stx $d020
   lda #0
 
@@ -124,6 +124,13 @@ mainIrq:  {
     lda #5
     sta $d021
   }
+  lda #0
+  sta $d021
+ wasteCycles(5)
+
+  // open border
+  lda #d011Value & %11110111
+  sta $d011
 
   inx
   cpx #sineLength
@@ -132,13 +139,19 @@ mainIrq:  {
 !if: // not end of sine
   stx lineIndex
 
-  // inc $d020
+  inc $d020
   jsr colorShine
+
   jsr music.play
-  // dec $d020
+  // // close border
+  lda #d011Value | %00001000
+  sta $d011
+   dec $d020
 
 // ack and return
   irqSet(firstRasterY, mainIrq)
+
+
   asl $d019
   rti
 }

@@ -7,11 +7,14 @@
     sta $ffff
     lda #(rasterline & $ff)
     sta $d012
+    lda $d011
     .if (rasterline > $ff) {
-      lda $d011
-      ora %10000000
-      sta $d011
-   }
+      ora #%10000000
+    }
+    else {
+      and #%01111111
+    }
+    sta $d011
 }
 
 .macro wasteCycles(nrCycles) {
