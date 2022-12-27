@@ -44,7 +44,7 @@ Ohttps://codebase64.org/doku.php?id=base:fpp-first-line
 .const nrCharsets = ($4000 - ($400 * nrScreens)) / $800;
 .const firstRasterY = $33 - 1
 .const d011Value = %00011000 // 24 rows
-.var ImageAddresses = List(nrLines)
+.var imageAddresses = List(nrLines)
 .var colorAddresses = List(nrLines)
 
 // }
@@ -53,6 +53,7 @@ Ohttps://codebase64.org/doku.php?id=base:fpp-first-line
 
 nmi:
   rti
+
 start: {
   sei             // Turn off interrupts
   jsr $ff81       // ROM Kernal function to clear the screen
@@ -76,11 +77,9 @@ start: {
   vicSetupPointers($4000, $0000, $2000)
   jsr music.init
 
-  lda #$05
+  lda #$00
+  sta $d020
   sta $d021
-  ldx #$01
-  stx $d020
-  lda #0
 
 fillcolor: {
   sta $d800,x
@@ -95,6 +94,7 @@ fillcolor: {
 
   irqSet(firstRasterY, mainIrq)
 
+// .break
 // .break
   lda #$01
   sta $d01a   // Enable raster interrupts and turn interrupts back on
@@ -117,7 +117,7 @@ mainIrq:  {
   .for (var y = 0; y < nrLines; y++) { // unrolled raster code
     lda #badlineD011(d011Value, currentRasterY + y) // trigger badline
     sta $d011
-    .eval ImageAddresses.set(y, * + 1)
+    .eval imageAddresses.set(y, * + 1)
     lda sineTableD018 + tree.get(y) * sineLength,x
     sta $d018 // +4 = 8
     .eval colorAddresses.set(y, * + 1)
@@ -135,18 +135,19 @@ mainIrq:  {
   inx
   cpx #sineLength
   bne !if+
+  inc $d020
   jsr replaceImage
 !if: // not end of sine
   stx lineIndex
 
-  inc $d020
+  // inc $d020
   jsr colorShine
 
   jsr music.play
   // // close border
+  dec $d020
   lda #d011Value | %00001000
   sta $d011
-   dec $d020
 
 // ack and return
   irqSet(firstRasterY, mainIrq)
@@ -182,7 +183,7 @@ shineD800:
 .fill 128,0
 }
 
-replaceImage: 
+replaceImage:
 .label imageIndex = * + 1
   lda #0
   cmp #3 // nr of images
@@ -196,7 +197,7 @@ replaceImage:
   sta imageJsr
   lda imageCodeHi,x
   sta imageJsr + 1
-  
+
 .label imageJsr = * + 1
   jsr replaceImageTree
   inc imageIndex
@@ -217,16 +218,46 @@ imageCodeHi:
 
 // image: list of linelengths (0-31), one for each image line
 // colors: list of colors, one for each image line
+
+.macro addToHashTable(table, value, address) {
+  .eval table.get(value).add(address)
+}
+
 .macro replaceImage(image, colors) {
+
+  // optimize code by only doing lda #$xx once for every unique value
+  // and storing it in one or more addresses
+  .const hash = Hashtable()
+  .for (var i = 0; i < 256; i++) {
+    .eval hash.put(i, List())
+  }
+
   .for (var y = 0; y < nrLines; y++) {
     .const sineStart = sineTableD018 + image.get(y) * sineLength
-    lda #<sineStart
-    sta ImageAddresses.get(y)
-    lda #>sineStart
-    sta ImageAddresses.get(y) + 1
-    lda #colors.get(y)
-    sta colorAddresses.get(y)
+    .const imgAddress = imageAddresses.get(y)
+    .const colorAddress = colorAddresses.get(y)
+    addToHashTable(hash, <sineStart, imgAddress)
+    addToHashTable(hash, >sineStart, imgAddress + 1)
+    addToHashTable(hash, colors.get(y), colorAddress)
   }
+
+  .var lastI = 0;
+  .for (var i = 0; i < 256; i++) {
+    .const addresses = hash.get(i)
+    .if (addresses.size() > 0) {
+      .if (i == lastI + 1) {
+        inx
+      }
+      else {
+        ldx #i
+      }
+      .for (var ii = 0; ii < addresses.size(); ii++) {
+        stx addresses.get(ii)
+      }
+      .eval lastI = i
+    }
+  }
+
   rts
 }
 

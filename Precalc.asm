@@ -123,10 +123,14 @@ sineTableD018:
 }
 
 // fill the charset
-* = $4000 + $2000 "Charsets bank 1"
+* = $4000 + $2000
 
+* = * "Font"
   createCharset(0*8)
+* = * "Font"
   createCharset(1*8)
+* = * "Font"
   createCharset(2*8)
+* = * "Font"
   createCharset(3*8)
 
