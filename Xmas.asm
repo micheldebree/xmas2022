@@ -43,7 +43,7 @@ Ohttps://codebase64.org/doku.php?id=base:fpp-first-line
 .const nrScreens = 256 / charsPerLine // number of different screens with one line repeated
 .const nrCharsets = ($4000 - ($400 * nrScreens)) / $800;
 .const firstRasterY = $33 - 1
-.const d011Value = %00011000 // 24 rows
+.const d011Value = %00010000 
 .var imageAddresses = List(nrLines)
 .var colorAddresses = List(nrLines)
 
@@ -121,7 +121,7 @@ mainIrq:  {
     lda sineTableD018 + tree.get(y) * sineLength,x
     sta $d018 // +4 = 8
     .eval colorAddresses.set(y, * + 1)
-    lda #5
+    lda #0
     sta $d021
   }
   lda #0
@@ -129,13 +129,12 @@ mainIrq:  {
  wasteCycles(5)
 
   // open border
-  lda #d011Value & %11110111
-  sta $d011
+  // lda #d011Value & %11110111
+  // sta $d011
 
   inx
   cpx #sineLength
   bne !if+
-  inc $d020
   jsr replaceImage
 !if: // not end of sine
   stx lineIndex
@@ -145,13 +144,11 @@ mainIrq:  {
 
   jsr music.play
   // // close border
-  dec $d020
-  lda #d011Value | %00001000
-  sta $d011
+  // lda #d011Value | %00001000
+  // sta $d011
 
 // ack and return
   irqSet(firstRasterY, mainIrq)
-
 
   asl $d019
   rti
@@ -159,29 +156,33 @@ mainIrq:  {
 
 colorShine: {
 
-    ldy #0
-    ldx #40
-    clc
-!while: // x >= 0
 .label shineIndex = * + 1
+    ldy rasterSine
+    ldx #40
+!while: // x >= 0
     lda shineD800,y
     sta $d800-1,x
     iny
-    tya
-    and #$0f
-    tay
     dex
     bne !while-
     inc shineIndex
+    lda shineIndex
+    and #%01111111
+    sta shineIndex
     rts
-
 
 .align $100
 shineD800:
-.fill 128,0
+.fill 32+12,0
 .byte 9,11,8,12,15,7,1,7,15,12,8,11,9,0,0,0
-.fill 128,0
+.fill 32,0
+
 }
+
+.align $100
+rasterSine:
+.fill 128, 32 + 32 * sin(toRadians(i*360/128)) // Generates a sine curve
+
 
 replaceImage:
 .label imageIndex = * + 1
