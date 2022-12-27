@@ -2,8 +2,8 @@
 
 #import "VIC.asm"
 
-.const nrCharsPerLine = 32 // width of the animation in characters
-// .const maxLineLength = nrCharsPerLine * 8
+.const nrCharsPerLine = 20 // width of the animation in characters
+.const nrCharLines = 8
 .const maxLineLength = 20 * 8
 .const maxLineSize = nrCharsPerLine * 8 // max width of a line in pixels
 .const nrScreensPerBank = 8 // number of different text screens to use
@@ -86,7 +86,6 @@ sineTableD018:
   }
 }
 
-.const nrCharLines = 256 / nrCharsPerLine
 
 .for (var i = 0; i < nrCharLines; i++) {
   * = $4000 + (i * $400) "Screen"
@@ -126,11 +125,15 @@ sineTableD018:
 * = $4000 + $2000
 
 * = * "Font"
+.align $800
   createCharset(0*8)
 * = * "Font"
+.align $800
   createCharset(1*8)
 * = * "Font"
+.align $800
   createCharset(2*8)
 * = * "Font"
+.align $800
   createCharset(3*8)
 
