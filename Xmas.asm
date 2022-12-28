@@ -10,7 +10,6 @@
 .var bell = LoadBinary("bell.png.bin")
 .var star = LoadBinary("star.png.bin")
 
-
 BasicUpstart2(start)
 
 * = music.location "Music"
@@ -52,6 +51,12 @@ https://codebase64.org/doku.php?id=base:fpp-first-line
 .var imageAddresses = List(nrLines)
 .var colorAddresses = List(nrLines)
 
+// in the border
+.var romFontCopy = $1000
+.var spriteData = $2000
+.var screenAddressInBorder = $0400
+
+
 // }
 
 * = $8000 "Code"
@@ -76,10 +81,29 @@ start: {
 
 .const yScroll = 0
 
-  lda #d011Value
-  sta $d011
+  lda #$ff
+  sta $d015
 
+  ldy #8
+  .for (var i =0; i < 8; i++) {
+    lda #24 + 24 * i
+    sta $d000 + 2 * i
+    sty $d001 + 2 * i
+    lda #(spriteData / $40) + i
+    sta screenAddressInBorder + $03f8 + i
+  }
+  lda #0
+  sta $d010
+
+  lda #1
+  sta $d027
+
+  lda #0
+  sta $3fff
+
+  vicCopyRomChar(romFontCopy)
   vicSetupPointers($4000, $0000, $2000)
+
   jsr music.init
 
   lda #$01
@@ -109,13 +133,12 @@ fillcolor: {
 mainIrq:  {
 
   irqStabilize()
-  wasteCycles(95)
+  wasteCycles(93)
   vicSelectBank($4000)
 
 .const currentRasterY = firstRasterY + 3
 
 .label lineIndex = * + 1
-
   ldx #16
 
   // unrolled raster code,
@@ -137,24 +160,34 @@ mainIrq:  {
     sta $d021
   }
 
+// we're now at the end of the visible screen
+
 // .break
+  lda #0
+  sta $d021
   vicSelectBank(0)
+  // use screen at $0400 and font at $3000
+  lda #vicCalcD018(1, 5)
+  sta $d018
 
   // open border
   lda #d011Value & %11110111
   sta $d011
+  // .break
 
   inx
   cpx #sineLength
-  bne !if+
-  jsr replaceImage
-!if: // not end of sine
+  bne !if+ // not end of sine period
+    jsr replaceImage
+
+!if:
   stx lineIndex
 
   // inc $d020
   jsr colorShine
-
+  jsr scroll
   jsr music.play
+
   // // close border
   lda #d011Value | %00001000
   sta $d011
@@ -172,11 +205,11 @@ colorShine: {
     ldy shineSine
     ldx #40
 !while: // x >= 0
-    lda shineColors,y
-    sta $d800-1,x
-    iny
-    dex
-    bne !while-
+      lda shineColors,y
+      sta $d800-1,x
+      iny
+      dex
+      bne !while-
     inc shineIndex
     lda shineIndex
     and #%01111111
@@ -197,15 +230,33 @@ shineSine:
 .fill 128, 32 + 32 * sin(toRadians(i*360/128)) 
 }
 
+scroll:
+
+.for (var i = 0; i < 8; i++) {
+  ldx #0
+  ldy #0
+!while: // x < 8
+    lda romFontCopy + 8,x
+    sta spriteData + (i * $40),y
+    inx
+    iny
+    iny
+    iny
+    cpx #8
+    bne !while-
+}
+  rts
+
 replaceImage:
+
 .label imageIndex = * + 1
   lda #0
-  cmp #5 // nr of images
-  bcc !skip+
-  lda #0
-  sta imageIndex
+  cmp #5 // if max image nr reached
+  bcc !else+ 
+    lda #0
+    sta imageIndex
 
-!skip:
+!else:
   tax
   lda imageCodeLo,x
   sta imageJsr
@@ -241,6 +292,9 @@ imageCodeHi:
 }
 
 .macro replaceImage(image, colors) {
+
+  // first line is always black to hide stupid artefact
+  .eval colors.set(0,0)
 
   // optimize code by only doing lda #$xx once for every unique value
   // and storing it in one or more addresses

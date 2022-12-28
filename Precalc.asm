@@ -49,10 +49,10 @@
   .return vicCalcD018(screen, font)
 }
 
-* = $3000 "Sine tables"
+* = $0900 "Sine tables"
 
 // Every one of the 32 possible lines is represented
-// by a table of $d018 values for each frame of the 'spin'
+// by a table of $d018 values for each frame (of 32) of the 'spin'
 sineTableD018:
 .for (var i = 0; i < nrLineLengths; i++) {
   .for (var t = 0; t < sineLength; t++) {

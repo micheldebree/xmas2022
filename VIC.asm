@@ -50,5 +50,24 @@
     lda vicCalcD018(fontOffset / vicFontSize, screenOffset / vicScreenSize)
     sta $d018
   }
+  
+.macro vicCopyRomChar(toAddress) {
+
+        lda $01
+        pha
+        // make rom characters visible
+        lda #%00110011
+        sta $01
+        ldx #0
+!while: // x < 256
+          .for(var i = 0; i < 8; i++) {
+            lda $d000 + (i * $100),x
+            sta toAddress + (i * $100),x
+          }
+          inx
+          bne !while-
+        pla
+        sta $01
+}
 
 // }
