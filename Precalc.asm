@@ -60,7 +60,7 @@ sineTableD018:
   }
 }
 
-.const screenHeight = 25
+.const screenHeight = 1
 .macro fillScreenWithChars(screenNr) {
   .for (var y = 0; y < screenHeight; y++) {
     .for (var x = 0; x < 20; x++) {

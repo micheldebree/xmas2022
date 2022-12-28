@@ -10,18 +10,16 @@
 .var bell = LoadBinary("bell.png.bin")
 .var star = LoadBinary("star.png.bin")
 
-.const nrLines = 196
 
 BasicUpstart2(start)
 
 * = music.location "Music"
 .fill music.size, music.getData(i)
 
-/** {
+/** { TODO
 
-TODO:
 - [X] Map out memory
-- [ ] Set up interrupt
+- [X] Set up interrupt
 - [X] Create screens
 - [X] Create fonts
 - [X] Create $d018 table with ob entry for each line
@@ -32,20 +30,25 @@ TODO:
 - [X] Add raster code
 - [X] Invert font
 - [X] Add an outline -> too ugly
-- [ ] Adjust actual nr of lines from 200
-- [ ] Switch images
-- [ ] Add colors
-- [ ] Optimize by doing precalc in assembler
+- [X] Adjust actual nr of lines from 200
+- [X] Switch images
+- [X] Add colors
+- [X] Optimize by doing precalc in assembler -> nah
+- [ ] Use 25 column mode without artifacts
+- [ ] Add scrolltext
+
 https://codebase64.org/doku.php?id=base:fpp-first-line
 
 } */
 
 // global variables and constants {
+.const nrLines = 195
 .const charsPerLine = 32 // characters per line in the screen
 .const nrScreens = 256 / charsPerLine // number of different screens with one line repeated
 .const nrCharsets = ($4000 - ($400 * nrScreens)) / $800;
 .const firstRasterY = $33 - 1
-.const d011Value = %00010000 
+// .const d011Value = %00010000 // 24 rows
+.const d011Value = %00011111 // 25 rows 
 .var imageAddresses = List(nrLines)
 .var colorAddresses = List(nrLines)
 
@@ -79,7 +82,7 @@ start: {
   vicSetupPointers($4000, $0000, $2000)
   jsr music.init
 
-  lda #$00
+  lda #$01
   sta $d020
   sta $d021
 
@@ -97,8 +100,6 @@ fillcolor: {
 
   irqSet(firstRasterY, mainIrq)
 
-// .break
-// .break
   lda #$01
   sta $d01a   // Enable raster interrupts and turn interrupts back on
   cli
@@ -108,7 +109,8 @@ fillcolor: {
 mainIrq:  {
 
   irqStabilize()
-  wasteCycles(52)
+  wasteCycles(95)
+  vicSelectBank($4000)
 
 .const currentRasterY = firstRasterY + 3
 
@@ -116,22 +118,31 @@ mainIrq:  {
 
   ldx #16
 
-  .for (var y = 0; y < nrLines; y++) { // unrolled raster code
-    lda #badlineD011(d011Value, currentRasterY + y) // trigger badline
+  // unrolled raster code,
+  // each iteration has exact duration of one raster line
+  .for (var y = 0; y < nrLines; y++) {
+
+    // trigger badline
+    lda #badlineD011(d011Value, currentRasterY + y)
     sta $d011
+
+    // save the address so we can modify the code
     .eval imageAddresses.set(y, * + 1)
     lda sineTableD018 + tree.get(y) * sineLength,x
-    sta $d018 // +4 = 8
+    sta $d018
+
+    // save the address so we can modify the code
     .eval colorAddresses.set(y, * + 1)
     lda #0
     sta $d021
   }
-  lda #0
-  sta $d021
+
+// .break
+  vicSelectBank(0)
 
   // open border
-  // lda #d011Value & %11110111
-  // sta $d011
+  lda #d011Value & %11110111
+  sta $d011
 
   inx
   cpx #sineLength
@@ -145,8 +156,8 @@ mainIrq:  {
 
   jsr music.play
   // // close border
-  // lda #d011Value | %00001000
-  // sta $d011
+  lda #d011Value | %00001000
+  sta $d011
 
 // ack and return
   irqSet(firstRasterY, mainIrq)
@@ -158,10 +169,10 @@ mainIrq:  {
 colorShine: {
 
 .label shineIndex = * + 1
-    ldy rasterSine
+    ldy shineSine
     ldx #40
 !while: // x >= 0
-    lda shineD800,y
+    lda shineColors,y
     sta $d800-1,x
     iny
     dex
@@ -173,16 +184,18 @@ colorShine: {
     rts
 
 .align $100
-shineD800:
+
+shineColors:
 .fill 32+12,0
 .byte 9,11,8,12,15,7,1,7,15,12,8,11,9,0,0,0
 .fill 32,0
 
-}
-
 .align $100
-rasterSine:
-.fill 128, 32 + 32 * sin(toRadians(i*360/128)) // Generates a sine curve
+
+shineSine:
+
+.fill 128, 32 + 32 * sin(toRadians(i*360/128)) 
+}
 
 replaceImage:
 .label imageIndex = * + 1
@@ -270,7 +283,6 @@ imageCodeHi:
     .eval colorList.set(i, color)
    }
 }
-
 
 @makeBlack:
 
