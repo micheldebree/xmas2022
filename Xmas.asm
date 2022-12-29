@@ -51,19 +51,17 @@ https://c64os.com/post/6502instructions
 .const d011Value = %00011111 // 25 rows 
 .var imageAddresses = List(nrLines)
 .var colorAddresses = List(nrLines)
-.var zpWord = $fa
 
-// in the border
-.var romFontCopy = $1000
-.var spriteData = $2000
-.var screenAddressInBorder = $0400
+// stuff in the border
+.const spriteData = $2000
+.const screenAddressInBorder = $0400
+.const spritePointers = screenAddressInBorder + $03f8
+.const firstPointer = spriteData / $40
 
+// load 2x2 charset and convert to sprites, one per character
+spritesFrom2x2Char(LoadBinary("marvin-charmar2x2.charset"), spriteData)
 
 // }
-
-* = romFontCopy "ROM font"
-
-.fill $800,0
 
 * = $7d00 "Code"
 
@@ -90,31 +88,20 @@ start: {
   lda #$ff
   sta $d015
 
-  ldy #8
+  ldy #$fa
   .for (var i =0; i < 8; i++) {
-    lda #24 + 24 * i
-    sta $d000 + 2 * i
     sty $d001 + 2 * i
     lda #(spriteData / $40) + i
-    sta screenAddressInBorder + $03f8 + i
+    sta spritePointers + i
   }
-  lda #0
-  sta $d010
 
-
-  lda #1
-  sta $d027
-
-  lda #0
-  sta $3fff
-
-  vicCopyRomChar(romFontCopy)
+  // vicCopyRomChar(romFontCopy)
   vicSetupPointers($4000, $0000, $2000)
 
-  jsr copyA
+  // jsr copyA
   jsr music.init
 
-  lda #$01
+  lda #$00
   sta $d020
   sta $d021
 
@@ -174,8 +161,8 @@ mainIrq:  {
   lda #0
   sta $d021
   vicSelectBank(0)
-  // use screen at $0400 and font at $3000
-  lda #vicCalcD018(1, 5)
+  // use screen at $0400 and font at $3800
+  lda #vicCalcD018(1, 6)
   sta $d018
 
   // open border
@@ -239,35 +226,10 @@ shineSine:
 }
 
 
-copyA:
-.for (var i = 0; i < 8; i++) {
-  ldx #0
-  ldy #0
-!while: // x < 8
-    lda romFontCopy + 8,x
-    sta spriteData + (i * $40),y
-    inx
-    iny
-    iny
-    iny
-    cpx #8
-    bne !while-
-}
-rts
-
-
-
-
-// .label spriteSineIndex = * + 1
-  
-
 scroll:
 
   ldx #0
   stx spriteMSBs
-  // lda #0
-  // sta zpWord
-  // sta zpWord + 1
 
    .for (var i = 0; i < 8; i++) {
       lda spritePosXLo + i
@@ -277,49 +239,68 @@ scroll:
       adc #$ff
       ror spriteMSBs
 
-      .if (i == 0) { 
-// .break      
-        }
       lda spritePosXLo + i
       sec
-      sbc #1
+      sbc #2
       sta spritePosXLo + i
       lda spritePosXHi + i
       sbc #0
       and #1
       sta spritePosXHi + i
-      bcs !if+
-      lda #24+320
-      sta spritePosXLo + i
-      lda #1
-      sta spritePosXHi + i
-
-!if:
+      bcs !else+ 
+        // reset sprite x to far right 
+        // .break
+        lda #320 + (320 / 7)
+        sta spritePosXLo + i
+        lda #1
+        sta spritePosXHi + i
+        jsr getNextChar
+        sta spritePointers + i
+!else:
   }
-
-
 
 .label spriteMSBs = * + 1
   lda #0
   sta $d010
-
-  // inx
-  // stx spriteSineIndex
-  // inc spriteScrollOffset
   rts
 
+getNextChar: {
+.label scrollTextIndex = * + 1
+
+        ldx #0
+        lda scrollText,x
+        cmp #0
+        bne !else+
+
+          // if end of scroll reached
+          lda #0
+          sta scrollTextIndex
+          jmp getNextChar
+  !else:
+        clc
+        adc #firstPointer
+        inc scrollTextIndex
+        rts
+}
+
 spritePosXLo:
-  .fill 8, (24 + 40 * i) & $ff
+  .fill 8, (24 + (320 / 7) * i) & $ff
 
 spritePosXHi:
-  .fill 8, (24 + 40 * i) / $100
-  
+  .fill 8, (24 + (320 / 7) * i) / $100
 
 spriteScrollOffset:
   .word $0000
 
-spriteSine:
-.fill 256, 32 + 32 * sin(toRadians(i*360/256)) 
+// spriteSine:
+// .fill 256, 32 + 32 * sin(toRadians(i*360/256)) 
+
+scrollText:
+
+.encoding "screencode_mixed"
+.text "haha. dit is lache man! 0123456789 ?"
+.byte 0
+
 
 replaceImage:
 
@@ -367,7 +348,7 @@ imageCodeHi:
 
 .macro replaceImage(image, colors) {
 
-  // first line is always black to hide stupid artefact
+  // first line is always black to hide stupid artifact
   .eval colors.set(0,0)
 
   // optimize code by only doing lda #$xx once for every unique value
@@ -390,6 +371,7 @@ imageCodeHi:
   .for (var i = 0; i < 256; i++) {
     .const addresses = hash.get(i)
     .if (addresses.size() > 0) {
+      // save one byte if we can do inx
       .if (i == lastI + 1) {
         inx
       }
@@ -506,3 +488,7 @@ rts
   putColor(snowmanColors, 191, 12)
   putColor(snowmanColors, 192, 11)
   replaceImage(snowman, snowmanColors)
+
+// convert 2x2 char to sprites
+
+

@@ -2,6 +2,7 @@
 
 #import "VIC.asm"
 
+.var font = LoadBinary("marvin-charmar2x2.charset")
 .const nrCharsPerLine = 20 // width of the animation in characters
 .const nrCharLines = 8
 .const maxLineLength = 20 * 8

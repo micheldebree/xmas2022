@@ -50,7 +50,7 @@
     lda vicCalcD018(fontOffset / vicFontSize, screenOffset / vicScreenSize)
     sta $d018
   }
-  
+
 .macro vicCopyRomChar(toAddress) {
 
         lda $01
@@ -68,6 +68,29 @@
           bne !while-
         pla
         sta $01
+}
+
+
+// convert 2x2 charset and convert to sprites, one per character
+.macro spritesFrom2x2Char(charset, targetAddress) {
+  .for (var c = 0; c < 64; c++) {
+
+    .const charAddr = c * 8
+    .const spriteAddr = targetAddress + c * 64
+
+    * = spriteAddr
+
+    .for (var y = 0; y < 8; y++) {
+      .byte charset.get(charAddr + y)
+      .byte charset.get(charAddr + $40 * 8 + y)
+      .byte 0
+    }
+    .for (var y = 0; y < 8; y++) {
+      .byte charset.get(charAddr + $80 * 8 + y)
+      .byte charset.get(charAddr + $c0 * 8 + y)
+      .byte 0
+    }
+  }
 }
 
 // }
