@@ -91,7 +91,7 @@ start: {
   ldy #$fa
   .for (var i =0; i < 8; i++) {
     sty $d001 + 2 * i
-    lda #(spriteData / $40) + i
+    lda #(spriteData / $40) 
     sta spritePointers + i
     lda #1
     sta $d027 + i
@@ -116,8 +116,8 @@ fillcolor: {
   bne fillcolor
 }
 
-  jsr replaceImageCandle
-  // jsr makeBlack
+  jsr replaceImageTree
+  jsr makeBlack
 
   irqSet(firstRasterY, mainIrq)
 
@@ -172,7 +172,10 @@ mainIrq:  {
   sta $d011
   // .break
 
+  bit animationEnabled
+  bvc !skip+
   inx
+!skip:
   cpx #sineLength
   bne !if+ // not end of sine period
     jsr replaceImage
@@ -180,10 +183,20 @@ mainIrq:  {
 !if:
   stx lineIndex
 
+  lda frameCount+1
+  cmp #2
+  bne !skip+
+  lda #$ff
+  sta animationEnabled
+  
+
+!skip:
+
   // inc $d020
   jsr colorShine
   jsr music.play
   jsr scroll
+  jsr advanceFrame
 
   // // close border
   lda #d011Value | %00001000
@@ -196,10 +209,23 @@ mainIrq:  {
   rti
 }
 
+animationEnabled:
+  .byte 0
+
+frameCount:
+  .word 0
+
+advanceFrame:
+  inc frameCount
+  bne !skip+
+  inc frameCount + 1
+!skip:
+  rts
+
 colorShine: {
 
 .label shineIndex = * + 1
-    ldy shineSine
+    ldy shineSine + $20
     ldx #40
 !while: // x >= 0
       lda shineColors,y
@@ -207,11 +233,34 @@ colorShine: {
       iny
       dex
       bne !while-
-    inc shineIndex
+
+    bit shineEnabled
+    bvc !skip+
+
+      inc shineIndex
+
     lda shineIndex
     and #%01111111
     sta shineIndex
+
+  !skip:
+    dec shineDelay
+    bne !skip+
+
+    lda shineEnabled
+    eor #$ff
+    sta shineEnabled
+
+  !skip:
     rts
+
+
+shineDelay:
+  .byte $40
+
+
+shineEnabled:
+  .byte 0
 
 .align $100
 
@@ -226,7 +275,6 @@ shineSine:
 
 .fill 128, 32 + 32 * sin(toRadians(i*360/128)) 
 }
-
 
 scroll:
 
@@ -303,14 +351,14 @@ spritePosXLo:
 spritePosXHi:
   .fill 8, (24 + (320 / 7) * i) / $100
 
-
 spriteSine:
 .fill 256, 8 + 8 * sin(toRadians(i*360/256)) 
 
 scrollText:
 
 .encoding "screencode_mixed"
-.text "season's greetings go to: laxity, jch, smc, yavin "
+.text "        special warm and fuzzy greetings to yavin laxity jch smc honcho magic genius jack-paw-judi  sander drax reyn vincenzo statler waldorf animal"
+
 .byte 0
 
 
