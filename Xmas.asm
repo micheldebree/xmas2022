@@ -93,6 +93,8 @@ start: {
     sty $d001 + 2 * i
     lda #(spriteData / $40) + i
     sta spritePointers + i
+    lda #1
+    sta $d027 + i
   }
 
   // vicCopyRomChar(romFontCopy)
@@ -114,7 +116,7 @@ fillcolor: {
   bne fillcolor
 }
 
-  jsr replaceImageBell
+  jsr replaceImageCandle
   // jsr makeBlack
 
   irqSet(firstRasterY, mainIrq)
@@ -241,14 +243,15 @@ scroll:
 
       lda spritePosXLo + i
       sec
-      sbc #2
+      sbc #1
       sta spritePosXLo + i
       lda spritePosXHi + i
       sbc #0
       and #1
       sta spritePosXHi + i
       bcs !else+ 
-        // reset sprite x to far right 
+        // reset sprite x to far right
+        // and get next char
         // .break
         lda #320 + (320 / 7)
         sta spritePosXLo + i
@@ -257,11 +260,22 @@ scroll:
         jsr getNextChar
         sta spritePointers + i
 !else:
+
+
+    // lda spritePosXLo + i
+    // clc
+    // adc spriteSine
+    // sta spritePosXLo + i
+    // lda spritePosXHi + i
+    // adc #0
+    // sta spritePosXHi + i
+
   }
 
 .label spriteMSBs = * + 1
   lda #0
   sta $d010
+  // .break
   rts
 
 getNextChar: {
@@ -289,16 +303,14 @@ spritePosXLo:
 spritePosXHi:
   .fill 8, (24 + (320 / 7) * i) / $100
 
-spriteScrollOffset:
-  .word $0000
 
-// spriteSine:
-// .fill 256, 32 + 32 * sin(toRadians(i*360/256)) 
+spriteSine:
+.fill 256, 8 + 8 * sin(toRadians(i*360/256)) 
 
 scrollText:
 
 .encoding "screencode_mixed"
-.text "haha. dit is lache man! 0123456789 ?"
+.text "season's greetings go to: laxity, jch, smc, yavin "
 .byte 0
 
 
@@ -306,7 +318,7 @@ replaceImage:
 
 .label imageIndex = * + 1
   lda #0
-  cmp #5 // if max image nr reached
+  cmp #6 // if max image nr reached
   bcc !else+ 
     lda #0
     sta imageIndex
@@ -327,7 +339,7 @@ replaceImage:
 imageCodeLo:
     .byte <replaceImageTree
     .byte <replaceImageBall
-    // .byte <replaceImageCandle
+    .byte <replaceImageCandle
     .byte <replaceImageBell
     .byte <replaceImageSnowman
     .byte <replaceImageStar
@@ -335,6 +347,7 @@ imageCodeLo:
 imageCodeHi:
     .byte >replaceImageTree
     .byte >replaceImageBall
+    .byte >replaceImageCandle
     .byte >replaceImageBell
     .byte >replaceImageSnowman
     .byte >replaceImageStar
@@ -422,9 +435,7 @@ rts
 @replaceImageBall:
 
   .var ballColors = List(nrLines)
-  putColor(ballColors, 0, 11)
-  putColor(ballColors, 1, 12)
-  putColor(ballColors, 2, 15)
+  putColor(ballColors, 0, 15)
   putColor(ballColors, 25, 1)
   putColor(ballColors, 26, 15)
 
@@ -432,9 +443,6 @@ rts
   putColor(ballColors, 51, 13)
   putColor(ballColors, 52, 3)
 
-  putColor(ballColors, 190, 15)
-  putColor(ballColors, 191, 14)
-  putColor(ballColors, 192, 6)
   replaceImage(ball, ballColors)
 
 * = * "Candle image code"
@@ -442,7 +450,10 @@ rts
 @replaceImageCandle:
 
   .var candleColors = List(nrLines)
-  putColor(candleColors, 0, 1)
+  putColor(candleColors, 0, 7)
+  putColor(candleColors, 60, 11)
+  putColor(candleColors, 68, 1)
+  putColor(candleColors, 173, 8)
   replaceImage(candle, candleColors)
 
 * = * "Star image code"
@@ -458,15 +469,11 @@ rts
 @replaceImageBell:
 
   .var bellColors = List(nrLines)
-  putColor(bellColors, 0, 1)
-  putColor(bellColors, 2, 7)
-  putColor(bellColors, 9, 1)
+  putColor(bellColors, 0, 8)
   putColor(bellColors, 10, 7)
   putColor(bellColors, 160, 11)
   putColor(bellColors, 161, 12)
   putColor(bellColors, 162, 15)
-  putColor(bellColors, 191, 12)
-  putColor(bellColors, 192, 11)
   replaceImage(bell, bellColors)
 
 * = * "Snowman image code"
@@ -475,20 +482,14 @@ rts
 
   .var snowmanColors = List(nrLines)
   putColor(snowmanColors, 0, 11)
-  putColor(snowmanColors, 31, 12)
-  putColor(snowmanColors, 32, 15)
-  putColor(snowmanColors, 33, 1)
+  putColor(snowmanColors, 32, 12)
+  putColor(snowmanColors, 33, 15)
+  putColor(snowmanColors, 34, 1)
 
   putColor(snowmanColors, 66, 15)
   putColor(snowmanColors, 67, 1)
 
   putColor(snowmanColors, 113, 15)
   putColor(snowmanColors, 114, 1)
-  putColor(snowmanColors, 190, 15)
-  putColor(snowmanColors, 191, 12)
-  putColor(snowmanColors, 192, 11)
   replaceImage(snowman, snowmanColors)
-
-// convert 2x2 char to sprites
-
 
