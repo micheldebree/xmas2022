@@ -33,10 +33,11 @@ BasicUpstart2(start)
 - [X] Switch images
 - [X] Add colors
 - [X] Optimize by doing precalc in assembler -> nah
-- [ ] Use 25 column mode without artifacts
+- [X] Use 25 column mode without artifacts -> minor artifacts
 - [ ] Add scrolltext
 
 https://codebase64.org/doku.php?id=base:fpp-first-line
+https://c64os.com/post/6502instructions
 
 } */
 
@@ -50,6 +51,7 @@ https://codebase64.org/doku.php?id=base:fpp-first-line
 .const d011Value = %00011111 // 25 rows 
 .var imageAddresses = List(nrLines)
 .var colorAddresses = List(nrLines)
+.var zpWord = $fa
 
 // in the border
 .var romFontCopy = $1000
@@ -59,7 +61,11 @@ https://codebase64.org/doku.php?id=base:fpp-first-line
 
 // }
 
-* = $8000 "Code"
+* = romFontCopy "ROM font"
+
+.fill $800,0
+
+* = $7d00 "Code"
 
 nmi:
   rti
@@ -95,6 +101,7 @@ start: {
   lda #0
   sta $d010
 
+
   lda #1
   sta $d027
 
@@ -104,6 +111,7 @@ start: {
   vicCopyRomChar(romFontCopy)
   vicSetupPointers($4000, $0000, $2000)
 
+  jsr copyA
   jsr music.init
 
   lda #$01
@@ -185,8 +193,8 @@ mainIrq:  {
 
   // inc $d020
   jsr colorShine
-  jsr scroll
   jsr music.play
+  jsr scroll
 
   // // close border
   lda #d011Value | %00001000
@@ -230,8 +238,8 @@ shineSine:
 .fill 128, 32 + 32 * sin(toRadians(i*360/128)) 
 }
 
-scroll:
 
+copyA:
 .for (var i = 0; i < 8; i++) {
   ldx #0
   ldy #0
@@ -245,7 +253,73 @@ scroll:
     cpx #8
     bne !while-
 }
+rts
+
+
+
+
+// .label spriteSineIndex = * + 1
+  
+
+scroll:
+
+  ldx #0
+  stx spriteMSBs
+  // lda #0
+  // sta zpWord
+  // sta zpWord + 1
+
+   .for (var i = 0; i < 8; i++) {
+      lda spritePosXLo + i
+      sta $d000 + 2 * i
+      lda spritePosXHi + i
+      clc
+      adc #$ff
+      ror spriteMSBs
+
+      .if (i == 0) { 
+// .break      
+        }
+      lda spritePosXLo + i
+      sec
+      sbc #1
+      sta spritePosXLo + i
+      lda spritePosXHi + i
+      sbc #0
+      and #1
+      sta spritePosXHi + i
+      bcs !if+
+      lda #24+320
+      sta spritePosXLo + i
+      lda #1
+      sta spritePosXHi + i
+
+!if:
+  }
+
+
+
+.label spriteMSBs = * + 1
+  lda #0
+  sta $d010
+
+  // inx
+  // stx spriteSineIndex
+  // inc spriteScrollOffset
   rts
+
+spritePosXLo:
+  .fill 8, (24 + 40 * i) & $ff
+
+spritePosXHi:
+  .fill 8, (24 + 40 * i) / $100
+  
+
+spriteScrollOffset:
+  .word $0000
+
+spriteSine:
+.fill 256, 32 + 32 * sin(toRadians(i*360/256)) 
 
 replaceImage:
 
