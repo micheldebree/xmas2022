@@ -11,6 +11,7 @@
 .const snowman = LoadBinary("snowman.png.bin")
 .const bell = LoadBinary("bell.png.bin")
 .const star = LoadBinary("star.png.bin")
+.const soldier = LoadBinary("soldier.png.bin")
 
 BasicUpstart2(start)
 
@@ -126,7 +127,9 @@ fillcolor: {
 }}
 
   jsr replaceImageTree
-  jsr makeBlack
+  .if (!debug) {
+    jsr makeBlack 
+  }
   jsr music.init
 
   // enable raster interrupts and turn interrupts back on
@@ -216,12 +219,11 @@ mainIrq:  {{
 
 // ack and return
   irqSet(firstRasterY, mainIrq)
-
   asl $d019
   rti
 
 animationEnabled:
-  .byte debug ? $ff : 0
+  .byte 0
 
 }}
 
@@ -353,8 +355,7 @@ scroll: {{
   .for (var i = 0; i < 8; i++) {
     lda spritePosXLo + i
     clc
-    // adc spriteSine,x
-    adc spriteSine + 8 * i,x
+    adc spriteSine + 16 * i,x
     sta spriteCalcXLo + i
     lda spritePosXHi + i
     adc #0
@@ -426,7 +427,7 @@ replaceImage:
 
 .label imageIndex = * + 1
   lda #0
-  cmp #6 // if max image nr reached
+  cmp #7 // if max image nr reached
   bcc !else+ 
     lda #0
     sta imageIndex
@@ -451,6 +452,7 @@ imageCodeLo:
     .byte <replaceImageBell
     .byte <replaceImageSnowman
     .byte <replaceImageStar
+    .byte <replaceImageSoldier
 
 imageCodeHi:
     .byte >replaceImageTree
@@ -459,6 +461,7 @@ imageCodeHi:
     .byte >replaceImageBell
     .byte >replaceImageSnowman
     .byte >replaceImageStar
+    .byte >replaceImageSoldier
 
 // image: list of linelengths (0-31), one for each image line
 // colors: list of colors, one for each image line
@@ -597,3 +600,20 @@ replaceImageSnowman:
   putColor(snowmanColors, 114, 1)
   replaceImage(snowman, snowmanColors)
 
+* = * "Soldier image code"
+
+replaceImageSoldier:
+
+  .var soldierColors = List(nrLines)
+  putColor(soldierColors, 0, 2)
+  putColor(soldierColors, 40, 11)
+  putColor(soldierColors, 49, 2)
+  putColor(soldierColors, 50, 10)
+  putColor(soldierColors, 67, 15)
+  putColor(soldierColors, 72, 2)
+  putColor(soldierColors, 144, 9)
+  putColor(soldierColors, 145, 8)
+  putColor(soldierColors, 166, 9)
+  putColor(soldierColors, 174, 0)
+  putColor(soldierColors, 175, 11)
+  replaceImage(soldier, soldierColors)
