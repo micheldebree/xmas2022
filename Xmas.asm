@@ -2,7 +2,7 @@
 #import "Precalc.asm"
 #import "RasterIrq.asm"
 
-.const debug = true
+.const debug = false
 
 .const music = LoadSid("ggbond.sid")
 .const tree = LoadBinary("tree.png.bin")
@@ -307,28 +307,59 @@ scroll: {{
 
       lda spritePosXLo + i
       sec
-      sbc #2
+      sbc #3
       sta spritePosXLo + i
       lda spritePosXHi + i
       sbc #0
       and #1
       sta spritePosXHi + i
-      bcs !else+ 
+      bcs !else+
+      // sprite is 'dirty', meaning it should be replaced soon
+      lda #$ff
+      sta spriteDirty + i
+
+      // cmp #1
+      // bne !else+
+
+      // lda spritePosXLo + i
+      // cmp #$c0
+      // bcc !else+
+
+      // lda spritePosXLo + i
+      // sec
+      // sbc #0
+      // lda spritePosXHi + i
+      // sbc #1
+
+
+!else:
+      bit spriteDirty + i
+      bvc !else+
+
+       lda spritePosXHi + i
+       cmp #1
+       bcc !else+ 
+       lda spritePosXLo + i
+        cmp #$c0
+        bcs !else+
         // reset sprite x to far right
         // and get next char
-        // lda #320 + (320 / 7)
-        // sta spritePosXLo + i
-        // lda #1
-        // sta spritePosXHi + i
-        // jsr getNextChar
-        // sta spritePointers + i
+        lda #24 + 320 + (320+32 / 7)
+        sta spritePosXLo + i
+         jsr getNextChar
+         sta spritePointers + i
+         lda #0
+         sta spriteDirty + i
+
+
 !else:
+
   }
+// .break
 
 .label spriteMSBs = * + 1
   lda #0
   sta $d010
-
 
 .label spriteSineIndex = * + 1
   ldx #0
@@ -342,24 +373,26 @@ scroll: {{
     adc #0
     and #1
     sta spriteCalcXHi + i
-    bcc !skip+
-      lda #320 + (320 / 7)
-      sta spritePosXLo + i
-      lda #1
-      sta spritePosXHi + i
+
+
+    // cmp #1
+    // bne !skip+
+    //   lda spritePosXLo + i
+    //   lda #320 + (320 / 7)
+    //   sta spritePosXLo + i
+    //   lda #1
+    //   sta spritePosXHi + i
       // jsr getNextChar
       // sta spritePointers + i
 
-  !skip:
-
+!else:
+    nop
 
   }
    inc spriteSineIndex 
    lda spriteSineIndex
    and #%01111111
    sta spriteSineIndex
-
-.break
   rts
 
 getNextChar: {
@@ -382,15 +415,18 @@ getNextChar: {
 }
 
 spritePosXLo:
-  .fill 8, 24 + (320 / 7) * i
+  .fill 8, 24 + (320+32 / 7) * i
 
 spriteCalcXLo:
   .fill 8, 0
 
 spritePosXHi:
-  .fill 8, (24 + (320 / 7) * i) / $100
+  .fill 8, (24 + (320+32 / 7) * i) / $100
 
 spriteCalcXHi:
+  .fill 8, 0
+
+spriteDirty:
   .fill 8, 0
 
 .align $100
