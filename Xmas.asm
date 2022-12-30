@@ -250,11 +250,16 @@ colorShine: {{
       lda shineIndex
       and #%01111111
       sta shineIndex
+      cmp #$20
+      bne !else+
+        jmp flipShineEnabled
+        
 
   !else:
     dec shineDelay
     bne !else+
       // if delay reached zero
+flipShineEnabled:      
       lda shineEnabled
       eor #$ff
       sta shineEnabled
@@ -352,7 +357,7 @@ spriteSine:
 
 scrollText:
   .encoding "screencode_mixed"
-  .text "        special warm and fuzzy greetings to yavin laxity jch smc honcho magic genius jack-paw-judi  sander drax reyn vincenzo statler waldorf animal"
+  .text "    special warm and fuzzy greetings to yavin laxity jch smc honcho magic genius jack-paw-judi  sander drax reyn vincenzo statler waldorf animal"
   .byte 0
 
 }}
