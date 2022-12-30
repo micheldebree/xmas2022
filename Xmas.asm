@@ -70,7 +70,7 @@ spritesFrom2x2Char(LoadBinary("marvin-charmar2x2.charset"), spriteData)
 nmi:
   rti
 
-start: 
+start:
   sei
 
   // clear screen
@@ -129,10 +129,12 @@ fillcolor: {
   jsr makeBlack
   jsr music.init
 
+  // enable raster interrupts and turn interrupts back on
   lda #$01
-  sta $d01a   // Enable raster interrupts and turn interrupts back on
+  sta $d01a
   cli
-  jmp *       // Do nothing and let the interrupts do all the work.
+  // do nothing and let the interrupts do all the work.
+  jmp *
 
 mainIrq:  {{
 
@@ -296,16 +298,16 @@ scroll: {{
   stx spriteMSBs
 
    .for (var i = 0; i < 8; i++) {
-      lda spritePosXLo + i
+      lda spriteCalcXLo + i
       sta $d000 + 2 * i
-      lda spritePosXHi + i
+      lda spriteCalcXHi + i
       clc
       adc #$ff
       ror spriteMSBs
 
       lda spritePosXLo + i
       sec
-      sbc #1
+      sbc #2
       sta spritePosXLo + i
       lda spritePosXHi + i
       sbc #0
@@ -314,20 +316,50 @@ scroll: {{
       bcs !else+ 
         // reset sprite x to far right
         // and get next char
-        // .break
-        lda #320 + (320 / 7)
-        sta spritePosXLo + i
-        lda #1
-        sta spritePosXHi + i
-        jsr getNextChar
-        sta spritePointers + i
+        // lda #320 + (320 / 7)
+        // sta spritePosXLo + i
+        // lda #1
+        // sta spritePosXHi + i
+        // jsr getNextChar
+        // sta spritePointers + i
 !else:
   }
 
 .label spriteMSBs = * + 1
   lda #0
   sta $d010
-  // .break
+
+
+.label spriteSineIndex = * + 1
+  ldx #0
+  .for (var i = 0; i < 8; i++) {
+    lda spritePosXLo + i
+    clc
+    // adc spriteSine,x
+    adc spriteSine + 8 * i,x
+    sta spriteCalcXLo + i
+    lda spritePosXHi + i
+    adc #0
+    and #1
+    sta spriteCalcXHi + i
+    bcc !skip+
+      lda #320 + (320 / 7)
+      sta spritePosXLo + i
+      lda #1
+      sta spritePosXHi + i
+      // jsr getNextChar
+      // sta spritePointers + i
+
+  !skip:
+
+
+  }
+   inc spriteSineIndex 
+   lda spriteSineIndex
+   and #%01111111
+   sta spriteSineIndex
+
+.break
   rts
 
 getNextChar: {
@@ -352,11 +384,19 @@ getNextChar: {
 spritePosXLo:
   .fill 8, 24 + (320 / 7) * i
 
+spriteCalcXLo:
+  .fill 8, 0
+
 spritePosXHi:
   .fill 8, (24 + (320 / 7) * i) / $100
 
+spriteCalcXHi:
+  .fill 8, 0
+
+.align $100
 spriteSine:
-.fill 256, 8 + 8 * sin(toRadians(i * 360 / 256))
+.fill 128, 32 + 32 * sin(toRadians(i * 360 / 128))
+.fill 128, 32 + 32 * sin(toRadians(i * 360 / 128))
 
 scrollText:
   .encoding "screencode_mixed"
