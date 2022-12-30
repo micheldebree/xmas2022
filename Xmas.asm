@@ -59,11 +59,11 @@ https://c64os.com/post/6502instructions
 .const screenAddressInBorder = $0400
 .const spritePointers = screenAddressInBorder + $03f8
 .const firstPointer = spriteData / $40
+.const spriteSineAmp = 32
+.const spriteSpacing = (320 + spriteSineAmp * 2) / (8-1)
 
 // load 2x2 charset and convert to sprites, one per character
 spritesFrom2x2Char(LoadBinary("marvin-charmar2x2.charset"), spriteData)
-
-// 
 
 * = $7d00 "Code"
 
@@ -168,11 +168,13 @@ mainIrq:  {{
 
 // we're now at the end of the visible screen
 
+
   lda #debug ? 2 : 0
   sta $d021
+  wasteCycles(32)
   vicSelectBank(0)
   // use screen at $0400 and font at $3800
-  lda #vicCalcD018(1, 6)
+  lda #vicCalcD018(1, 7)
   sta $d018
 
   // open border
@@ -219,7 +221,7 @@ mainIrq:  {{
   rti
 
 animationEnabled:
-  .byte 0
+  .byte debug ? $ff : 0
 
 }}
 
@@ -318,20 +320,6 @@ scroll: {{
       lda #$ff
       sta spriteDirty + i
 
-      // cmp #1
-      // bne !else+
-
-      // lda spritePosXLo + i
-      // cmp #$c0
-      // bcc !else+
-
-      // lda spritePosXLo + i
-      // sec
-      // sbc #0
-      // lda spritePosXHi + i
-      // sbc #1
-
-
 !else:
       bit spriteDirty + i
       bvc !else+
@@ -340,11 +328,11 @@ scroll: {{
        cmp #1
        bcc !else+ 
        lda spritePosXLo + i
-        cmp #$c0
+        cmp #0 - spriteSineAmp * 2
         bcs !else+
         // reset sprite x to far right
         // and get next char
-        lda #24 + 320 + (320+32 / 7)
+        lda #24 + spriteSpacing * 8 - spriteSineAmp * 2 
         sta spritePosXLo + i
          jsr getNextChar
          sta spritePointers + i
@@ -355,7 +343,6 @@ scroll: {{
 !else:
 
   }
-// .break
 
 .label spriteMSBs = * + 1
   lda #0
@@ -374,17 +361,6 @@ scroll: {{
     and #1
     sta spriteCalcXHi + i
 
-
-    // cmp #1
-    // bne !skip+
-    //   lda spritePosXLo + i
-    //   lda #320 + (320 / 7)
-    //   sta spritePosXLo + i
-    //   lda #1
-    //   sta spritePosXHi + i
-      // jsr getNextChar
-      // sta spritePointers + i
-
 !else:
     nop
 
@@ -398,30 +374,35 @@ scroll: {{
 getNextChar: {
 .label scrollTextIndex = * + 1
 
-        ldx #0
-        lda scrollText,x
+        lda scrollText
         cmp #0
         bne !else+
 
           // if end of scroll reached
-          lda #0
+          lda #<scrollText
           sta scrollTextIndex
+          lda #>scrollText
+          sta scrollTextIndex+1
           jmp getNextChar
   !else:
         clc
         adc #firstPointer
         inc scrollTextIndex
+        bne !skip+
+        inc scrollTextIndex + 1
+
+  !skip:
         rts
 }
 
 spritePosXLo:
-  .fill 8, 24 + (320+32 / 7) * i
+  .fill 8, 24 + spriteSpacing * i
 
 spriteCalcXLo:
   .fill 8, 0
 
 spritePosXHi:
-  .fill 8, (24 + (320+32 / 7) * i) / $100
+  .fill 8, (24 + spriteSpacing * i) / $100
 
 spriteCalcXHi:
   .fill 8, 0
@@ -431,12 +412,12 @@ spriteDirty:
 
 .align $100
 spriteSine:
-.fill 128, 32 + 32 * sin(toRadians(i * 360 / 128))
-.fill 128, 32 + 32 * sin(toRadians(i * 360 / 128))
+.fill 128, spriteSineAmp + spriteSineAmp * sin(toRadians(i * 360 / 128))
+.fill 128, spriteSineAmp + spriteSineAmp * sin(toRadians(i * 360 / 128))
 
 scrollText:
   .encoding "screencode_mixed"
-  .text "    special warm and fuzzy greetings to yavin laxity jch smc honcho magic genius jack-paw-judi  sander drax reyn vincenzo statler waldorf animal"
+  .text "         i wish you all a sparkling and healthy 2023!   a special warm and sloppy brohug to:  yavin  laxity  jch  smc genius  honcho magic  jack-paw-judi  sander  drax reyn vincenzo  stinsen  statler  waldorf  animal  hires  moren  it was fun working and chatting with you guys, thanks for keeping the scene alive!     and a special thanks to jez for setting up the c64.chat mastodon server!      "
   .byte 0
 
 }}
@@ -551,10 +532,6 @@ replaceImageTree:
 
   .var treeColors = List(nrLines)
   putColor(treeColors, 0, 5)
-  putColor(treeColors, 74, 8)
-  putColor(treeColors, 75, 5)
-  putColor(treeColors, 124, 8)
-  putColor(treeColors, 125, 5)
   putColor(treeColors, 178,11)
   putColor(treeColors, 179, 9)
   putColor(treeColors, 181, 8)
@@ -599,7 +576,7 @@ replaceImageBell:
 
   .var bellColors = List(nrLines)
   putColor(bellColors, 0, 8)
-  putColor(bellColors, 10, 7)
+  putColor(bellColors, 10, 2)
   putColor(bellColors, 160, 11)
   putColor(bellColors, 161, 12)
   putColor(bellColors, 162, 15)
