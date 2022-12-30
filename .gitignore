@@ -5,3 +5,4 @@
 *.jar
 *.bin
 node_modules
+Session.vim

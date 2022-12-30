@@ -15,7 +15,7 @@ BasicUpstart2(start)
 * = music.location "Music"
 .fill music.size, music.getData(i)
 
-/** { TODO
+/**  TODO
 
 - [X] Map out memory
 - [X] Set up interrupt
@@ -39,13 +39,13 @@ BasicUpstart2(start)
 https://codebase64.org/doku.php?id=base:fpp-first-line
 https://c64os.com/post/6502instructions
 
-} */
+ */
 
-// global variables and constants {
+// global variables and constants 
+
+// nr of lines in the big image
 .const nrLines = 195
-.const charsPerLine = 32 // characters per line in the screen
-.const nrScreens = 256 / charsPerLine // number of different screens with one line repeated
-.const nrCharsets = ($4000 - ($400 * nrScreens)) / $800;
+
 .const firstRasterY = $33 - 1
 // .const d011Value = %00010000 // 24 rows
 .const d011Value = %00011111 // 25 rows 
@@ -61,48 +61,54 @@ https://c64os.com/post/6502instructions
 // load 2x2 charset and convert to sprites, one per character
 spritesFrom2x2Char(LoadBinary("marvin-charmar2x2.charset"), spriteData)
 
-// }
+// 
 
 * = $7d00 "Code"
 
 nmi:
   rti
 
-start: {
-  sei             // Turn off interrupts
-  jsr $ff81       // ROM Kernal function to clear the screen
+start: 
+  sei
+
+  // clear screen
+  jsr $ff81
+
+setupIrq: {{
+  // turn off Kernal ROM
   lda #%00110101
-  sta $01         // Turn off Kernal ROM
+  sta $01
 
+  // no timer IRQs
   lda #$7f
-  sta $dc0d      // no timer IRQs
-  lda $dc0d      // acknowledge CIA interrupts
+  sta $dc0d
+  // acknowledge CIA interrupts
+  lda $dc0d
 
+  // dummy NMI (Non Maskable Interupt)
+  // to avoid crashing due to RESTORE
   lda #<nmi
   sta $fffa
   lda #>nmi
-  sta $fffb      // dummy NMI (Non Maskable Interupt) to avoid crashing due to RESTORE
+  sta $fffb
 
-.const yScroll = 0
+  irqSet(firstRasterY, mainIrq)
+}}
 
+setupSprites: {{
   lda #$ff
   sta $d015
-
   ldy #$fa
-  .for (var i =0; i < 8; i++) {
+  .for (var i = 0; i < 8; i++) {
     sty $d001 + 2 * i
-    lda #(spriteData / $40) 
+    lda #(spriteData / $40)
     sta spritePointers + i
     lda #1
     sta $d027 + i
   }
+}}
 
-  // vicCopyRomChar(romFontCopy)
-  vicSetupPointers($4000, $0000, $2000)
-
-  // jsr copyA
-  jsr music.init
-
+turnScreenBlack: {{
   lda #$00
   sta $d020
   sta $d021
@@ -115,17 +121,16 @@ fillcolor: {
   inx
   bne fillcolor
 }
+}}
 
   jsr replaceImageTree
   jsr makeBlack
-
-  irqSet(firstRasterY, mainIrq)
+  jsr music.init
 
   lda #$01
   sta $d01a   // Enable raster interrupts and turn interrupts back on
   cli
   jmp *       // Do nothing and let the interrupts do all the work.
-}
 
 mainIrq:  {
 
@@ -140,7 +145,7 @@ mainIrq:  {
 
   // unrolled raster code,
   // each iteration has exact duration of one raster line
-  .for (var y = 0; y < nrLines; y++) {
+  .for (var y = 0; y < nrLines; y++) {{
 
     // trigger badline
     lda #badlineD011(d011Value, currentRasterY + y)
@@ -155,11 +160,10 @@ mainIrq:  {
     .eval colorAddresses.set(y, * + 1)
     lda #0
     sta $d021
-  }
+  }}
 
 // we're now at the end of the visible screen
 
-// .break
   lda #0
   sta $d021
   vicSelectBank(0)
@@ -170,27 +174,29 @@ mainIrq:  {
   // open border
   lda #d011Value & %11110111
   sta $d011
-  // .break
 
   bit animationEnabled
-  bvc !skip+
-  inx
-!skip:
+  bvc !else+
+    // if animation enabled
+    inx
+
+!else:
   cpx #sineLength
-  bne !if+ // not end of sine period
+  bne !else+
+    // if at end of sine period
     jsr replaceImage
 
-!if:
+!else:
   stx lineIndex
 
   lda frameCount+1
   cmp #2
-  bne !skip+
-  lda #$ff
-  sta animationEnabled
-  
+  bne !else+
+    // if framecount reached
+    lda #$ff
+    sta animationEnabled
 
-!skip:
+!else:
 
   // inc $d020
   jsr colorShine
@@ -217,16 +223,19 @@ frameCount:
 
 advanceFrame:
   inc frameCount
-  bne !skip+
-  inc frameCount + 1
-!skip:
+  bne !else+
+    // if overflowed
+    inc frameCount + 1
+!else:
   rts
 
-colorShine: {
+colorShine: {{
 
 .label shineIndex = * + 1
+
     ldy shineSine + $20
     ldx #40
+
 !while: // x >= 0
       lda shineColors,y
       sta $d800-1,x
@@ -235,29 +244,26 @@ colorShine: {
       bne !while-
 
     bit shineEnabled
-    bvc !skip+
-
+    bvc !else+
+      // if effect is enabled
       inc shineIndex
+      lda shineIndex
+      and #%01111111
+      sta shineIndex
 
-    lda shineIndex
-    and #%01111111
-    sta shineIndex
-
-  !skip:
+  !else:
     dec shineDelay
-    bne !skip+
+    bne !else+
+      // if delay reached zero
+      lda shineEnabled
+      eor #$ff
+      sta shineEnabled
 
-    lda shineEnabled
-    eor #$ff
-    sta shineEnabled
-
-  !skip:
+  !else:
     rts
-
 
 shineDelay:
   .byte $40
-
 
 shineEnabled:
   .byte 0
@@ -265,18 +271,18 @@ shineEnabled:
 .align $100
 
 shineColors:
-.fill 32+12,0
-.byte 9,11,8,12,15,7,1,7,15,12,8,11,9,0,0,0
-.fill 32,0
+  .fill 32+12,0
+  .byte 9,11,8,12,15,7,1,7,15,12,8,11,9,0,0,0
+  .fill 32,0
 
 .align $100
 
 shineSine:
+  .fill 128, 32 + 32 * sin(toRadians(i * 360 / 128)) 
 
-.fill 128, 32 + 32 * sin(toRadians(i*360/128)) 
-}
+}}
 
-scroll:
+scroll: {{
 
   ldx #0
   stx spriteMSBs
@@ -308,16 +314,6 @@ scroll:
         jsr getNextChar
         sta spritePointers + i
 !else:
-
-
-    // lda spritePosXLo + i
-    // clc
-    // adc spriteSine
-    // sta spritePosXLo + i
-    // lda spritePosXHi + i
-    // adc #0
-    // sta spritePosXHi + i
-
   }
 
 .label spriteMSBs = * + 1
@@ -346,7 +342,7 @@ getNextChar: {
 }
 
 spritePosXLo:
-  .fill 8, (24 + (320 / 7) * i) & $ff
+  .fill 8, 24 + (320 / 7) * i
 
 spritePosXHi:
   .fill 8, (24 + (320 / 7) * i) / $100
@@ -355,12 +351,11 @@ spriteSine:
 .fill 256, 8 + 8 * sin(toRadians(i*360/256)) 
 
 scrollText:
+  .encoding "screencode_mixed"
+  .text "        special warm and fuzzy greetings to yavin laxity jch smc honcho magic genius jack-paw-judi  sander drax reyn vincenzo statler waldorf animal"
+  .byte 0
 
-.encoding "screencode_mixed"
-.text "        special warm and fuzzy greetings to yavin laxity jch smc honcho magic genius jack-paw-judi  sander drax reyn vincenzo statler waldorf animal"
-
-.byte 0
-
+}}
 
 replaceImage:
 
@@ -455,9 +450,10 @@ imageCodeHi:
    }
 }
 
-@makeBlack:
+makeBlack:
 
 lda #0
+
 .for (var y = 0; y < nrLines; y++) {
   sta colorAddresses.get(y)
 }
@@ -465,7 +461,7 @@ rts
 
 * = * "Tree image code"
 
-@replaceImageTree:
+replaceImageTree:
 
   .var treeColors = List(nrLines)
   putColor(treeColors, 0, 5)
@@ -480,13 +476,12 @@ rts
 
 * = * "Ball image code"
 
-@replaceImageBall:
+replaceImageBall:
 
   .var ballColors = List(nrLines)
   putColor(ballColors, 0, 15)
   putColor(ballColors, 25, 1)
   putColor(ballColors, 26, 15)
-
   putColor(ballColors, 50, 7)
   putColor(ballColors, 51, 13)
   putColor(ballColors, 52, 3)
@@ -495,7 +490,7 @@ rts
 
 * = * "Candle image code"
 
-@replaceImageCandle:
+replaceImageCandle:
 
   .var candleColors = List(nrLines)
   putColor(candleColors, 0, 7)
@@ -506,7 +501,7 @@ rts
 
 * = * "Star image code"
 
-@replaceImageStar:
+replaceImageStar:
 
   .var starColors = List(nrLines)
   putColor(starColors, 0, 7)
@@ -514,7 +509,7 @@ rts
 
 * = * "Bell image code"
 
-@replaceImageBell:
+replaceImageBell:
 
   .var bellColors = List(nrLines)
   putColor(bellColors, 0, 8)
@@ -526,17 +521,15 @@ rts
 
 * = * "Snowman image code"
 
-@replaceImageSnowman:
+replaceImageSnowman:
 
   .var snowmanColors = List(nrLines)
   putColor(snowmanColors, 0, 11)
   putColor(snowmanColors, 32, 12)
   putColor(snowmanColors, 33, 15)
   putColor(snowmanColors, 34, 1)
-
   putColor(snowmanColors, 66, 15)
   putColor(snowmanColors, 67, 1)
-
   putColor(snowmanColors, 113, 15)
   putColor(snowmanColors, 114, 1)
   replaceImage(snowman, snowmanColors)

@@ -1,6 +1,13 @@
-// TODO:: use more accurate math?
-
 #import "VIC.asm"
+/*
+
+Calculate fonts and screens to give 32 possible line lengths
+at any y-position.
+
+Calculate 32 sinetables of $d018 values representing all the
+phases of one 'spin' for each line length
+
+*/
 
 .var font = LoadBinary("marvin-charmar2x2.charset")
 .const nrCharsPerLine = 20 // width of the animation in characters
@@ -15,9 +22,6 @@
 // the number of different line lengths we can display
 .const nrLineLengths = (nrScreensPerBank * nrFontsPerBank)
 .const invertFont = true // use inverted fonts so we can switch color with $d021
-
-.print ("Number of fonts per bank: " + nrFontsPerBank)
-.print ("Number of different line lengths: " + nrLineLengths)
 
 // for line x1 to x2, get the byte representing the segment at charIndex
 .function lineSegmentBits(x1, x2, charIndex) {
@@ -37,7 +41,6 @@
       }
       .eval mask = mask >> 1
   }
-// .print ("line segment " + x1 + " to " + x2 + " for char " + charIndex + " is " + result)
   .if (invertFont) {
     .eval result = result ^ %11111111
   }
@@ -54,6 +57,7 @@
 
 // Every one of the 32 possible lines is represented
 // by a table of $d018 values for each frame (of 32) of the 'spin'
+// one 'spin' is actually a bounce, so 180 degrees instead of 360
 sineTableD018:
 .for (var i = 0; i < nrLineLengths; i++) {
   .for (var t = 0; t < sineLength; t++) {
@@ -61,15 +65,14 @@ sineTableD018:
   }
 }
 
-.const screenHeight = 1
 .macro fillScreenWithChars(screenNr) {
-  .for (var y = 0; y < screenHeight; y++) {
-    .for (var x = 0; x < 20; x++) {
-        .byte screenNr * nrCharsPerLine + x
-    }
-    .for (var x = 0; x < 20; x++) {
-        .byte screenNr * nrCharsPerLine + x
-    }
+  // for some reason we only need the first line to be filled
+  // not sure why
+  .for (var x = 0; x < 20; x++) {
+      .byte screenNr * nrCharsPerLine + x
+  }
+  .for (var x = 0; x < 20; x++) {
+      .byte screenNr * nrCharsPerLine + x
   }
 }
 
@@ -78,16 +81,9 @@ sineTableD018:
   fillScreenWithChars(i);
 }
 
-// bank $4000
-// 8 screens
-// 4 fonts: line lengtes 0-7, 8-15, 16-23, 24-31
-// bank $8000
-// 4 fonts: line lengtes 
-
-// nrScreen = 8 for bank 1, 4 for bank 2
 .macro createCharset(lineNr) {
 
-  .const lineStep = maxLineLength / (2 * nrLineLengths) // 48 lines in total
+  .const lineStep = maxLineLength / (2 * nrLineLengths)
   .const middle = maxLineLength / 2
 
   // 8 lines of characters
