@@ -341,8 +341,6 @@ scroll: {{
          sta spritePointers + i
          lda #0
          sta spriteDirty + i
-
-
 !else:
 
   }
@@ -364,13 +362,22 @@ scroll: {{
     sta spriteCalcXHi + i
 
 !else:
-    nop
 
   }
    inc spriteSineIndex 
    lda spriteSineIndex
    and #%01111111
    sta spriteSineIndex
+  .label spriteColorIndex = * + 1
+        ldx #0
+        lda spriteColors,x
+        .for (var i = 0; i < 8; i++) {
+          sta $d027 + i
+        }
+        inc spriteColorIndex
+        lda spriteColorIndex
+        and #%00011111
+        sta spriteColorIndex
   rts
 
 getNextChar: {
@@ -394,6 +401,8 @@ getNextChar: {
         inc scrollTextIndex + 1
 
   !skip:
+
+
         rts
 }
 
@@ -411,6 +420,10 @@ spriteCalcXHi:
 
 spriteDirty:
   .fill 8, 0
+
+spriteColors:
+  .byte 9,2,8,10,15,7,1,1,1,1,1,1,1,1,1,1
+  .byte 1,1,1,1,1,1,1,1,1,7,15,10,8,2,9,0
 
 .align $100
 spriteSine:
