@@ -2,13 +2,15 @@
 #import "Precalc.asm"
 #import "RasterIrq.asm"
 
-.var music = LoadSid("ggbond.sid")
-.var tree = LoadBinary("tree.png.bin")
-.var ball = LoadBinary("ball.png.bin")
-.var candle = LoadBinary("candle.png.bin")
-.var snowman = LoadBinary("snowman.png.bin")
-.var bell = LoadBinary("bell.png.bin")
-.var star = LoadBinary("star.png.bin")
+.const debug = true
+
+.const music = LoadSid("ggbond.sid")
+.const tree = LoadBinary("tree.png.bin")
+.const ball = LoadBinary("ball.png.bin")
+.const candle = LoadBinary("candle.png.bin")
+.const snowman = LoadBinary("snowman.png.bin")
+.const bell = LoadBinary("bell.png.bin")
+.const star = LoadBinary("star.png.bin")
 
 BasicUpstart2(start)
 
@@ -101,7 +103,7 @@ setupSprites: {{
   ldy #$fa
   .for (var i = 0; i < 8; i++) {
     sty $d001 + 2 * i
-    lda #(spriteData / $40)
+    lda #firstPointer + (debug ? 1 : 0)
     sta spritePointers + i
     lda #1
     sta $d027 + i
@@ -109,7 +111,7 @@ setupSprites: {{
 }}
 
 turnScreenBlack: {{
-  lda #$00
+  lda #debug ? 1 : 0
   sta $d020
   sta $d021
 
@@ -132,7 +134,7 @@ fillcolor: {
   cli
   jmp *       // Do nothing and let the interrupts do all the work.
 
-mainIrq:  {
+mainIrq:  {{
 
   irqStabilize()
   wasteCycles(93)
@@ -164,7 +166,7 @@ mainIrq:  {
 
 // we're now at the end of the visible screen
 
-  lda #0
+  lda #debug ? 2 : 0
   sta $d021
   vicSelectBank(0)
   // use screen at $0400 and font at $3800
@@ -213,10 +215,11 @@ mainIrq:  {
 
   asl $d019
   rti
-}
 
 animationEnabled:
   .byte 0
+
+}}
 
 frameCount:
   .word 0
@@ -253,13 +256,12 @@ colorShine: {{
       cmp #$20
       bne !else+
         jmp flipShineEnabled
-        
 
   !else:
     dec shineDelay
     bne !else+
       // if delay reached zero
-flipShineEnabled:      
+flipShineEnabled:
       lda shineEnabled
       eor #$ff
       sta shineEnabled
@@ -277,7 +279,8 @@ shineEnabled:
 
 shineColors:
   .fill 32+12,0
-  .byte 9,11,8,12,15,7,1,7,15,12,8,11,9,0,0,0
+  // .byte 9,11,8,12,15,7,1,7,15,12,8,11,9,0,0,0
+  .byte 9,2,8,10,15,7,1,7,15,10,8,2,9,0,0,0
   .fill 32,0
 
 .align $100
@@ -353,7 +356,7 @@ spritePosXHi:
   .fill 8, (24 + (320 / 7) * i) / $100
 
 spriteSine:
-.fill 256, 8 + 8 * sin(toRadians(i*360/256)) 
+.fill 256, 8 + 8 * sin(toRadians(i * 360 / 256))
 
 scrollText:
   .encoding "screencode_mixed"
@@ -410,7 +413,9 @@ imageCodeHi:
 .macro replaceImage(image, colors) {
 
   // first line is always black to hide stupid artifact
-  .eval colors.set(0,0)
+  .if (!debug) {
+    .eval colors.set(0,0)
+  }
 
   // optimize code by only doing lda #$xx once for every unique value
   // and storing it in one or more addresses
