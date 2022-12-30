@@ -12,6 +12,7 @@
 .const bell = LoadBinary("bell.png.bin")
 .const star = LoadBinary("star.png.bin")
 .const soldier = LoadBinary("soldier.png.bin")
+.const angel = LoadBinary("angel.png.bin")
 
 BasicUpstart2(start)
 
@@ -427,7 +428,7 @@ replaceImage:
 
 .label imageIndex = * + 1
   lda #0
-  cmp #7 // if max image nr reached
+  cmp #8 // if max image nr reached
   bcc !else+ 
     lda #0
     sta imageIndex
@@ -453,6 +454,7 @@ imageCodeLo:
     .byte <replaceImageSnowman
     .byte <replaceImageStar
     .byte <replaceImageSoldier
+    .byte <replaceImageAngel
 
 imageCodeHi:
     .byte >replaceImageTree
@@ -462,6 +464,7 @@ imageCodeHi:
     .byte >replaceImageSnowman
     .byte >replaceImageStar
     .byte >replaceImageSoldier
+    .byte >replaceImageAngel
 
 // image: list of linelengths (0-31), one for each image line
 // colors: list of colors, one for each image line
@@ -617,3 +620,12 @@ replaceImageSoldier:
   putColor(soldierColors, 174, 0)
   putColor(soldierColors, 175, 11)
   replaceImage(soldier, soldierColors)
+
+* = * "Soldier image code"
+
+replaceImageAngel:
+
+  .var angelColors = List(nrLines)
+  putColor(angelColors, 0, 10)
+  putColor(angelColors, 40, 1)
+  replaceImage(angel, angelColors)
