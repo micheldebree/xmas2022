@@ -1,4 +1,4 @@
-#import "VIC.asm"
+#import "lib/VIC.asm"
 /*
 
 Calculate fonts and screens to give 32 possible line lengths
@@ -9,7 +9,6 @@ phases of one 'spin' for each line length
 
 */
 
-.var font = LoadBinary("marvin-charmar2x2.charset")
 .const nrCharsPerLine = 20 // width of the animation in characters
 .const nrCharLines = 8
 .const maxLineLength = 20 * 8

@@ -18,6 +18,8 @@
 }
 
 .macro wasteCycles(nrCycles) {
+  .errorif nrCycles < 2, "You cannot waste less than 2 cycles"
+
   .var left = nrCycles
   .var nrInc = floor(nrCycles / 6)
   .if (mod(nrCycles, 6) == 1) { .eval nrInc = nrInc - 1 }

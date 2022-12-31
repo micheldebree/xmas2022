@@ -1,6 +1,4 @@
 #importonce
-// .filenamespace vic
-// .namespace vic {
 
   // 63 cycles in one line
   // 23 cycles on bad line
@@ -8,6 +6,8 @@
   .const vicBankSize = $4000
   .const vicScreenSize = $400
   .const vicFontSize = $800
+  .const vicSpriteSize = $40
+  .const vicCharSize = 8
 
   // Set the vic bank to start at
   .macro vicSelectBank(startAddress) {
@@ -29,10 +29,7 @@
 //  <= $f7 and the lower three bits of RASTER are equal to YSCROLL and if the
 //  DEN bit was set during an arbitrary cycle of raster line $30.
   .function isBadLine(rasterY, yscroll) {
-    .const rasterBits = rasterY & %111
-    .const yscrollBits = yscroll & %111
-    .const result = (rasterY >= $30 && rasterY <= $f7) && rasterBits == yscrollBits
-    .return result
+    .return (rasterY >= $30 && rasterY <= $f7) && (rasterY & %111 == yscroll & %111)
   }
 
   // calculate the new value for D011 that triggers a bad line on rasterY
@@ -52,7 +49,6 @@
   }
 
 .macro vicCopyRomChar(toAddress) {
-
         lda $01
         pha
         // make rom characters visible
@@ -70,27 +66,25 @@
         sta $01
 }
 
-
-// convert 2x2 charset and convert to sprites, one per character
+// convert 2x2 charset to sprites, one per character
 .macro spritesFrom2x2Char(charset, targetAddress) {
   .for (var c = 0; c < 64; c++) {
 
-    .const charAddr = c * 8
-    .const spriteAddr = targetAddress + c * 64
+    .const charAddr = c * vicCharSize 
+    .const spriteAddr = targetAddress + c * vicSpriteSize
 
     * = spriteAddr
 
-    .for (var y = 0; y < 8; y++) {
+    .for (var y = 0; y < vicCharSize; y++) {
       .byte charset.get(charAddr + y)
-      .byte charset.get(charAddr + $40 * 8 + y)
+      .byte charset.get(charAddr + $40 * vicCharSize + y)
       .byte 0
     }
-    .for (var y = 0; y < 8; y++) {
-      .byte charset.get(charAddr + $80 * 8 + y)
-      .byte charset.get(charAddr + $c0 * 8 + y)
+    .for (var y = 0; y < vicCharSize; y++) {
+      .byte charset.get(charAddr + $80 * vicCharSize + y)
+      .byte charset.get(charAddr + $c0 * vicCharSize + y)
       .byte 0
     }
   }
 }
 
-// }

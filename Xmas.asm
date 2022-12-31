@@ -1,25 +1,29 @@
-#import "VIC.asm"
+#import "lib/VIC.asm"
+#import "lib/RasterIrq.asm"
+
 #import "Precalc.asm"
-#import "RasterIrq.asm"
 
 .const debug = false
 
-.const music = LoadSid("ggbond.sid")
-.const tree = LoadBinary("tree.png.bin")
-.const ball = LoadBinary("ball.png.bin")
-.const candle = LoadBinary("candle.png.bin")
-.const snowman = LoadBinary("snowman.png.bin")
-.const bell = LoadBinary("bell.png.bin")
-.const star = LoadBinary("star.png.bin")
-.const soldier = LoadBinary("soldier.png.bin")
-.const angel = LoadBinary("angel.png.bin")
+// Resources {{
+.const music = LoadSid("resources/ggbond.sid")
+.const font = LoadBinary("resources/marvin-charmar2x2.charset")
+.const tree = LoadBinary("resources/tree.png.bin")
+.const ball = LoadBinary("resources/ball.png.bin")
+.const candle = LoadBinary("resources/candle.png.bin")
+.const snowman = LoadBinary("resources/snowman.png.bin")
+.const bell = LoadBinary("resources/bell.png.bin")
+.const star = LoadBinary("resources/star.png.bin")
+.const soldier = LoadBinary("resources/soldier.png.bin")
+.const angel = LoadBinary("resources/angel.png.bin")
+// }}
 
 BasicUpstart2(start)
 
 * = music.location "Music"
 .fill music.size, music.getData(i)
 
-/**  TODO
+/**  TODO {{
 
 - [X] Map out memory
 - [X] Set up interrupt
@@ -38,21 +42,22 @@ BasicUpstart2(start)
 - [X] Add colors
 - [X] Optimize by doing precalc in assembler -> nah
 - [X] Use 25 column mode without artifacts -> minor artifacts
-- [ ] Add scrolltext
+- [X] Add scrolltext
 
 https://codebase64.org/doku.php?id=base:fpp-first-line
 https://c64os.com/post/6502instructions
 
- */
+}}  */
 
-// global variables and constants 
+// global variables and constants
 
 // nr of lines in the big image
 .const nrLines = 195
 
 .const firstRasterY = $33 - 1
-// .const d011Value = %00010000 // 24 rows
-.const d011Value = %00011111 // 25 rows 
+.const d011Value = %00011111 // 25 rows
+
+// keep a list of addresses to modify the code in the main loop
 .var imageAddresses = List(nrLines)
 .var colorAddresses = List(nrLines)
 
@@ -65,7 +70,7 @@ https://c64os.com/post/6502instructions
 .const spriteSpacing = (320 + spriteSineAmp * 2) / (8-1)
 
 // load 2x2 charset and convert to sprites, one per character
-spritesFrom2x2Char(LoadBinary("marvin-charmar2x2.charset"), spriteData)
+spritesFrom2x2Char(font, spriteData)
 
 * = $7d00 "Code"
 
@@ -102,13 +107,11 @@ setupIrq: {{
 setupSprites: {{
   lda #$ff
   sta $d015
-  ldy #$fa
+  lda #firstPointer + (debug ? 1 : 0)
+  ldx #$fa
   .for (var i = 0; i < 8; i++) {
-    sty $d001 + 2 * i
-    lda #firstPointer + (debug ? 1 : 0)
     sta spritePointers + i
-    lda #1
-    sta $d027 + i
+    stx $d001 + 2 * i
   }
 }}
 
@@ -117,6 +120,7 @@ turnScreenBlack: {{
   sta $d020
   sta $d021
 
+  tax
 fillcolor: {
   sta $d800,x
   sta $d900,x
@@ -127,10 +131,6 @@ fillcolor: {
 }
 }}
 
-  jsr replaceImageTree
-  .if (!debug) {
-    jsr makeBlack 
-  }
   jsr music.init
 
   // enable raster interrupts and turn interrupts back on
@@ -151,20 +151,27 @@ mainIrq:  {{
 .label lineIndex = * + 1
   ldx #16
 
-  // unrolled raster code,
-  // each iteration has exact duration of one raster line
+  // unrolled raster code displaying the image by
+  // manipulating $d018 and $d021 on each raster line.
+  // because there is no time for fancy indexed reads,
+  // the values are hardcoded in lda # instructions.
+  // when the image is changed, these values are modified by the
+  // image replacement code.
+  // each iteration has exact duration (nr of cycles) of one (bad) raster line
   .for (var y = 0; y < nrLines; y++) {{
 
     // trigger badline
     lda #badlineD011(d011Value, currentRasterY + y)
     sta $d011
 
-    // save the address so we can modify the code
+    // save the address of the hardcoded value so we can generate code that
+    // modifies this code
     .eval imageAddresses.set(y, * + 1)
     lda sineTableD018 + tree.get(y) * sineLength,x
     sta $d018
 
-    // save the address so we can modify the code
+    // save the address of the hardcoded value so we can generate code that
+    // modifies this code
     .eval colorAddresses.set(y, * + 1)
     lda #0
     sta $d021
@@ -195,6 +202,7 @@ mainIrq:  {{
   bne !else+
     // if at end of sine period
     jsr replaceImage
+    ldx #0
 
 !else:
   stx lineIndex
@@ -293,7 +301,7 @@ shineColors:
 .align $100
 
 shineSine:
-  .fill 128, 32 + 32 * sin(toRadians(i * 360 / 128)) 
+  .fill 128, 32 + 32 * sin(toRadians(i * 360 / 128))
 
 }}
 
@@ -302,47 +310,50 @@ scroll: {{
   ldx #0
   stx spriteMSBs
 
-   .for (var i = 0; i < 8; i++) {
-      lda spriteCalcXLo + i
-      sta $d000 + 2 * i
-      lda spriteCalcXHi + i
-      clc
-      adc #$ff
-      ror spriteMSBs
+  .for (var i = 0; i < 8; i++) {
+    // set calculated x positions for sprites
+    lda spriteCalcXLo + i
+    sta $d000 + 2 * i
+    lda spriteCalcXHi + i
+    clc
+    adc #$ff
+    ror spriteMSBs
 
-      lda spritePosXLo + i
-      sec
-      sbc #3
-      sta spritePosXLo + i
-      lda spritePosXHi + i
-      sbc #0
-      and #1
-      sta spritePosXHi + i
-      bcs !else+
+    // scroll to the left
+    lda spritePosXLo + i
+    sec
+    sbc #3
+    sta spritePosXLo + i
+    lda spritePosXHi + i
+    sbc #0
+    and #1
+    sta spritePosXHi + i
+    bcs !else+
       // sprite is 'dirty', meaning it should be replaced soon
       lda #$ff
       sta spriteDirty + i
 
 !else:
-      bit spriteDirty + i
-      bvc !else+
+    bit spriteDirty + i
+    bvc !else+
 
-       lda spritePosXHi + i
-       cmp #1
-       bcc !else+ 
-       lda spritePosXLo + i
-        cmp #0 - spriteSineAmp * 2
-        bcs !else+
+      lda spritePosXHi + i
+      cmp #1
+      bcc !else+
+      lda spritePosXLo + i
+      cmp #0 - spriteSineAmp * 2
+
+      bcs !else+
         // reset sprite x to far right
         // and get next char
-        lda #24 + spriteSpacing * 8 - spriteSineAmp * 2 
+        lda #24 + spriteSpacing * 8 - spriteSineAmp * 2
         sta spritePosXLo + i
-         jsr getNextChar
-         sta spritePointers + i
-         lda #0
-         sta spriteDirty + i
-!else:
+        jsr getNextChar
+        sta spritePointers + i
+        lda #0
+        sta spriteDirty + i
 
+!else:
   }
 
 .label spriteMSBs = * + 1
@@ -352,6 +363,7 @@ scroll: {{
 .label spriteSineIndex = * + 1
   ldx #0
   .for (var i = 0; i < 8; i++) {
+    // add sinetable offset to calculated sprite x pos
     lda spritePosXLo + i
     clc
     adc spriteSine + 16 * i,x
@@ -360,50 +372,50 @@ scroll: {{
     adc #0
     and #1
     sta spriteCalcXHi + i
-
-!else:
-
   }
-   inc spriteSineIndex 
-   lda spriteSineIndex
-   and #%01111111
-   sta spriteSineIndex
+
+  inc spriteSineIndex
+  lda spriteSineIndex
+  and #%01111111
+  sta spriteSineIndex
+
+  // flash sprite colors
   .label spriteColorIndex = * + 1
-        ldx #0
-        lda spriteColors,x
-        .for (var i = 0; i < 8; i++) {
-          sta $d027 + i
-        }
-        inc spriteColorIndex
-        lda spriteColorIndex
-        and #%00011111
-        sta spriteColorIndex
+  ldx #0
+  lda spriteColors,x
+  .for (var i = 0; i < 8; i++) {
+    sta $d027 + i
+  }
+  inc spriteColorIndex
+  lda spriteColorIndex
+  and #%00011111
+  sta spriteColorIndex
   rts
 
+// get the next character from the scroll text
 getNextChar: {
+
 .label scrollTextIndex = * + 1
+  lda scrollText
+  cmp #0
+  bne !else+
+    // if end of scroll reached
+    lda #<scrollText
+    sta scrollTextIndex
+    lda #>scrollText
+    sta scrollTextIndex+1
+    jmp getNextChar
 
-        lda scrollText
-        cmp #0
-        bne !else+
-
-          // if end of scroll reached
-          lda #<scrollText
-          sta scrollTextIndex
-          lda #>scrollText
-          sta scrollTextIndex+1
-          jmp getNextChar
   !else:
-        clc
-        adc #firstPointer
-        inc scrollTextIndex
-        bne !skip+
-        inc scrollTextIndex + 1
+    clc
+    adc #firstPointer
+    inc scrollTextIndex
+    bne !else+
+      // if index overflowed
+      inc scrollTextIndex + 1
 
-  !skip:
-
-
-        rts
+  !else:
+    rts
 }
 
 spritePosXLo:
@@ -426,6 +438,9 @@ spriteColors:
   .byte 1,1,1,1,1,1,1,1,1,7,15,10,8,2,9,0
 
 .align $100
+
+// lazy and wasteful doubling of the table because every sprite uses a different
+// offset into the table
 spriteSine:
 .fill 128, spriteSineAmp + spriteSineAmp * sin(toRadians(i * 360 / 128))
 .fill 128, spriteSineAmp + spriteSineAmp * sin(toRadians(i * 360 / 128))
@@ -441,51 +456,54 @@ replaceImage:
 
 .label imageIndex = * + 1
   lda #0
-  cmp #8 // if max image nr reached
-  bcc !else+ 
+  cmp #8
+  bcc !else+
+    // if max image nr reached
     lda #0
     sta imageIndex
 
 !else:
+  inc imageIndex
+  // replace the jmp instruction to call
+  // the right image replacement code
   tax
   lda imageCodeLo,x
-  sta imageJsr
+  sta imageJmp
   lda imageCodeHi,x
-  sta imageJsr + 1
+  sta imageJmp + 1
 
-.label imageJsr = * + 1
-  jsr replaceImageTree
-  inc imageIndex
-  ldx #0
-  rts
+.label imageJmp = * + 1
+  jmp replaceImageTree
 
 imageCodeLo:
-    .byte <replaceImageTree
-    .byte <replaceImageBall
-    .byte <replaceImageCandle
-    .byte <replaceImageBell
-    .byte <replaceImageSnowman
-    .byte <replaceImageStar
-    .byte <replaceImageSoldier
-    .byte <replaceImageAngel
+  .byte <replaceImageTree
+  .byte <replaceImageBall
+  .byte <replaceImageCandle
+  .byte <replaceImageBell
+  .byte <replaceImageSnowman
+  .byte <replaceImageStar
+  .byte <replaceImageSoldier
+  .byte <replaceImageAngel
 
 imageCodeHi:
-    .byte >replaceImageTree
-    .byte >replaceImageBall
-    .byte >replaceImageCandle
-    .byte >replaceImageBell
-    .byte >replaceImageSnowman
-    .byte >replaceImageStar
-    .byte >replaceImageSoldier
-    .byte >replaceImageAngel
-
-// image: list of linelengths (0-31), one for each image line
-// colors: list of colors, one for each image line
+  .byte >replaceImageTree
+  .byte >replaceImageBall
+  .byte >replaceImageCandle
+  .byte >replaceImageBell
+  .byte >replaceImageSnowman
+  .byte >replaceImageStar
+  .byte >replaceImageSoldier
+  .byte >replaceImageAngel
 
 .macro addToHashTable(table, value, address) {
   .eval table.get(value).add(address)
 }
 
+// Unrolled code is generated for each image. The code
+// modifies the main loop code to display another image
+//
+// image: list of linelengths (0-31), one for each image line
+// colors: list of colors, one for each image line
 .macro replaceImage(image, colors) {
 
   // first line is always black to hide stupid artifact
@@ -493,7 +511,7 @@ imageCodeHi:
     .eval colors.set(0,0)
   }
 
-  // optimize code by only doing lda #$xx once for every unique value
+  // optimize code by only doing ldx #$xx once for every unique value
   // and storing it in one or more addresses
   .const hash = Hashtable()
   .for (var i = 0; i < 256; i++) {
@@ -526,7 +544,6 @@ imageCodeHi:
       .eval lastI = i
     }
   }
-
   rts
 }
 
@@ -535,15 +552,6 @@ imageCodeHi:
     .eval colorList.set(i, color)
    }
 }
-
-makeBlack:
-
-lda #0
-
-.for (var y = 0; y < nrLines; y++) {
-  sta colorAddresses.get(y)
-}
-rts
 
 * = * "Tree image code"
 
@@ -634,7 +642,7 @@ replaceImageSoldier:
   putColor(soldierColors, 175, 11)
   replaceImage(soldier, soldierColors)
 
-* = * "Soldier image code"
+* = * "Angel image code"
 
 replaceImageAngel:
 

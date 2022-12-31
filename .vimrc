@@ -9,6 +9,7 @@ noremap <F9> O.break<ESC>
 noremap <F12> :!open http://www.theweb.dk/KickAssembler/webhelp/content/cpt_Introduction.html<CR>
 set errorformat=%EError:\ %m,%Cat\ line\ %l\\,\ column\ %c\ in\ %f,%Z
 set autoindent
+set textwidth=80
 set shiftwidth=2
 set tabstop=2
 set softtabstop=2
@@ -18,6 +19,6 @@ set foldmethod=marker
 set foldmarker={{,}}
 set foldlevel=0
 set foldcolumn=3
-set autochdir
+" set autochdir
 au FileType asm set commentstring=//%s
 au VimLeave *.asm mks!

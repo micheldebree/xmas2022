@@ -6,11 +6,10 @@ DEBUGGER=/Applications/C64\ Debugger.app/Contents/MacOS/C64\ Debugger
 # https://bitbucket.org/magli143/exomizer/wiki/Home
 EXOMIZER=/usr/local/bin/exomizer
 
-.PRECIOUS: %.exe.prg
-
 %.prg: %.asm $(KICKASS)
 	java -jar $(KICKASS) -debugdump -symbolfile -vicesymbols "$<"
 
+.PRECIOUS: %.exe.prg
 %.exe.prg: %.prg
 	exomizer sfx basic "$<" -o "$@"
 
@@ -22,11 +21,16 @@ EXOMIZER=/usr/local/bin/exomizer
 %.debug: %.prg
 	$(DEBUGGER) -prg "$<" -wait 5000 -autojmp -layout 9
 
-%.png.bin: %.png
+%.png.bin: resources/%.png node_modules
 	node convert_image.js "$<"
 
-Xmas.prg: Xmas.asm Precalc.asm VIC.asm \
-	tree.png.bin ball.png.bin candle.png.bin snowman.png.bin bell.png.bin star.png.bin soldier.png.bin angel.png.bin
+Xmas.prg: Xmas.asm Precalc.asm \
+	lib/VIC.asm \
+	tree.png.bin ball.png.bin candle.png.bin snowman.png.bin \
+	bell.png.bin star.png.bin soldier.png.bin angel.png.bin
+
+node_modules:
+	yarn install
 
 .PHONY: clean
 clean:
@@ -36,4 +40,5 @@ clean:
 	rm -f *.vs
 	rm -f *.dbg
 	rm -f *.d64
-	rm -f *.bin
+	rm -f resources/*.bin
+	rm -r node_modules
