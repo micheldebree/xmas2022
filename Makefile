@@ -7,7 +7,7 @@ DEBUGGER=/Applications/C64\ Debugger.app/Contents/MacOS/C64\ Debugger
 EXOMIZER=/usr/local/bin/exomizer
 
 %.prg: %.asm $(KICKASS)
-	java -jar $(KICKASS) -debugdump -symbolfile -vicesymbols "$<"
+	java -jar $(KICKASS) -debugdump -vicesymbols "$<"
 
 .PRECIOUS: %.exe.prg
 %.exe.prg: %.prg
@@ -21,13 +21,13 @@ EXOMIZER=/usr/local/bin/exomizer
 %.debug: %.prg
 	$(DEBUGGER) -prg "$<" -wait 5000 -autojmp -layout 9
 
-%.png.bin: resources/%.png node_modules
+%.png.bin: %.png node_modules
 	node convert_image.js "$<"
 
 Xmas.prg: Xmas.asm Precalc.asm \
-	lib/VIC.asm \
-	tree.png.bin ball.png.bin candle.png.bin snowman.png.bin \
-	bell.png.bin star.png.bin soldier.png.bin angel.png.bin
+	lib/VIC.asm lib/RasterIrq.asm \
+	resources/tree.png.bin resources/ball.png.bin resources/candle.png.bin resources/snowman.png.bin \
+	resources/bell.png.bin resources/star.png.bin resources/soldier.png.bin resources/angel.png.bin
 
 node_modules:
 	yarn install

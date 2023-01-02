@@ -29,7 +29,7 @@ BasicUpstart2(start)
 - [X] Set up interrupt
 - [X] Create screens
 - [X] Create fonts
-- [X] Create $d018 table with ob entry for each line
+- [X] Create $d018 table with an entry for each line
 - [X] Create $dd00 table with entry for each line
 - [X] Make spinning rectangle (no raster code yet)
 - [X] Create sinetable for each line
@@ -116,19 +116,20 @@ setupSprites: {{
 }}
 
 turnScreenBlack: {{
+
   lda #debug ? 1 : 0
   sta $d020
   sta $d021
-
   tax
-fillcolor: {
+
+while: // x < $100
   sta $d800,x
   sta $d900,x
   sta $da00,x
   sta $db00,x
   inx
-  bne fillcolor
-}
+  bne while
+
 }}
 
   jsr music.init
@@ -179,12 +180,12 @@ mainIrq:  {{
 
 // we're now at the end of the visible screen
 
-
   lda #debug ? 2 : 0
   sta $d021
   wasteCycles(32)
-  vicSelectBank(0)
+
   // use screen at $0400 and font at $3800
+  vicSelectBank(0)
   lda #vicCalcD018(1, 7)
   sta $d018
 
@@ -215,18 +216,16 @@ mainIrq:  {{
     sta animationEnabled
 
 !else:
-
-  // inc $d020
   jsr colorShine
   jsr music.play
   jsr scroll
   jsr advanceFrame
 
-  // // close border
+  // close border
   lda #d011Value | %00001000
   sta $d011
 
-// ack and return
+  // reset interrupt, ack and return
   irqSet(firstRasterY, mainIrq)
   asl $d019
   rti
@@ -294,7 +293,6 @@ shineEnabled:
 
 shineColors:
   .fill 32+12,0
-  // .byte 9,11,8,12,15,7,1,7,15,12,8,11,9,0,0,0
   .byte 9,2,8,10,15,7,1,7,15,10,8,2,9,0,0,0
   .fill 32,0
 
@@ -380,7 +378,7 @@ scroll: {{
   sta spriteSineIndex
 
   // flash sprite colors
-  .label spriteColorIndex = * + 1
+.label spriteColorIndex = * + 1
   ldx #0
   lda spriteColors,x
   .for (var i = 0; i < 8; i++) {

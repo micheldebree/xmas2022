@@ -73,7 +73,7 @@
     .const charAddr = c * vicCharSize 
     .const spriteAddr = targetAddress + c * vicSpriteSize
 
-    * = spriteAddr
+    * = spriteAddr "Sprite"
 
     .for (var y = 0; y < vicCharSize; y++) {
       .byte charset.get(charAddr + y)

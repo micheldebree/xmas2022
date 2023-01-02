@@ -103,10 +103,8 @@ sineTableD018:
 }
 
 // fill the charset
-* = $4000 + $2000
+* = $4000 + $2000 "Font"
 
-* = * "Font"
-.align $800
   createCharset(0*8)
 * = * "Font"
 .align $800
